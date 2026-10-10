@@ -233,7 +233,8 @@ export default function SignInPage() {
             </button>
           </form>
 
-          {/* Demo credentials hint */}
+          {/* Demo credentials hint — only shown in development builds, excluded from production */}
+          {import.meta.env.DEV && (
           <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/80 rounded-2xl">
             <p className="text-2xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Demo Credentials</p>
             <p className="text-xs text-zinc-500 mb-2">
@@ -256,6 +257,7 @@ export default function SignInPage() {
               ))}
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

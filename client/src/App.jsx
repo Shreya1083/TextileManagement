@@ -57,6 +57,9 @@ import MillSettings from './features/settings/MillSettings'
 import MasterData   from './features/settings/MasterData'
 import UsersPage    from './features/settings/UsersPage'
 
+// Roles that have full internal ERP access (excludes external Buyer role)
+const INTERNAL_ROLES = ['owner', 'store', 'supervisor', 'inspector', 'accounts']
+
 /** Show the public landing page when unauthenticated; redirect authenticated users to their role home */
 function RootRedirect() {
   const { user } = useAuth()
@@ -75,7 +78,7 @@ export default function App() {
         <Route path="/403"    element={<Forbidden />} />
         <Route path="/"       element={<RootRedirect />} />
 
-        {/* Protected — inside AppLayout */}
+        {/* Protected — inside AppLayout (any authenticated user) */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             {/* Dashboards */}
@@ -89,7 +92,7 @@ export default function App() {
             <Route path="/inventory/gate-entries"    element={<GateEntryPage />} />
             <Route path="/inventory/purchase-orders" element={<PurchaseOrdersPage />} />
 
-            {/* Orders */}
+            {/* Orders — accessible to all authenticated roles including Buyer */}
             <Route path="/buyers" element={<BuyersPage />} />
             <Route path="/orders" element={<OrdersPage />} />
 
@@ -108,21 +111,26 @@ export default function App() {
             <Route path="/dispatch"       element={<DispatchPage />} />
             <Route path="/invoices"       element={<InvoicesPage />} />
 
-            {/* HR */}
-            <Route path="/hr/workers"         element={<WorkersPage />} />
-            <Route path="/hr/dashboard"       element={<WorkerDashboard />} />
-            <Route path="/hr/attendance"      element={<AttendancePage />} />
-            <Route path="/hr/wages"           element={<WagesPage />} />
+            {/* HR — attendance and workers open to all authenticated roles; wages/dashboard restricted */}
+            <Route path="/hr/workers"          element={<WorkersPage />} />
+            <Route path="/hr/dashboard"        element={<WorkerDashboard />} />
+            <Route path="/hr/attendance"       element={<AttendancePage />} />
             <Route path="/worker/my-dashboard" element={<MyDashboard />} />
 
-            {/* Finance */}
-            <Route path="/finance/costing" element={<CostingPage />} />
-            <Route path="/finance/pnl"     element={<PnLPage />} />
+            {/* Internal-only routes: Buyer is blocked, redirected to /403 */}
+            <Route element={<ProtectedRoute roles={INTERNAL_ROLES} />}>
+              {/* HR — wages contains payroll data */}
+              <Route path="/hr/wages" element={<WagesPage />} />
 
-            {/* Settings */}
-            <Route path="/settings/mill"        element={<MillSettings />} />
-            <Route path="/settings/master-data" element={<MasterData />} />
-            <Route path="/users"                element={<UsersPage />} />
+              {/* Finance — P&L and costing are owner/internal only */}
+              <Route path="/finance/costing" element={<CostingPage />} />
+              <Route path="/finance/pnl"     element={<PnLPage />} />
+
+              {/* Settings — admin/internal only */}
+              <Route path="/settings/mill"        element={<MillSettings />} />
+              <Route path="/settings/master-data" element={<MasterData />} />
+              <Route path="/users"                element={<UsersPage />} />
+            </Route>
           </Route>
         </Route>
 
