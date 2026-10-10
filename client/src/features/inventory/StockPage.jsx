@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Search, AlertTriangle, Plus, TrendingDown } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { useAuth }    from '../../context/AuthContext'
 import { mockYarnStock } from '../../mocks/data'
 import { cn } from '../../lib/utils'
 
@@ -22,6 +23,7 @@ function StockBar({ current, reserved, reorder }) {
 }
 
 export default function StockPage() {
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const filtered = mockYarnStock.filter(y =>
     y.type.toLowerCase().includes(search.toLowerCase()) ||
@@ -33,7 +35,7 @@ export default function StockPage() {
     <div className="page-root">
       <PageHeader
         title="Stock Levels"
-        subtitle="Current, reserved and available yarn inventory"
+        subtitle={`Managed by ${user?.name} · Current, reserved and available yarn inventory`}
         actions={<button className="btn-primary btn-sm"><Plus size={14} />Add GRN</button>}
       />
 

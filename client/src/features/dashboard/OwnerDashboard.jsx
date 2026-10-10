@@ -10,6 +10,8 @@ import { StatCard }    from '../../components/ui/StatCard'
 import { Badge }       from '../../components/ui/Badge'
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { formatCurrency, formatDate } from '../../lib/utils'
+import { useAuth }     from '../../context/AuthContext'
+import { ROLE_LABELS } from '../../context/AuthContext'
 import {
   mockStats, mockRevenueData, mockProductionData, mockQualityData,
   mockOrders, mockAlerts, mockMachines,
@@ -37,17 +39,25 @@ const CHART_STYLE = {
 }
 
 export default function OwnerDashboard() {
+  const { user } = useAuth()
   const running = mockMachines.filter(m => m.status === 'RUNNING').length
   const delayed = mockOrders.filter(
     o => !['DISPATCHED','CLOSED'].includes(o.status) && new Date(o.deadline) < new Date()
   ).length
 
+  const greeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 17) return 'Good afternoon'
+    return 'Good evening'
+  }
+
   return (
     <div className="page-root">
 
       <PageHeader
-        title="Owner Dashboard"
-        subtitle={new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        title={`${greeting()}, ${user?.name?.split(' ')[0]} 👋`}
+        subtitle={`${ROLE_LABELS[user?.role] || user?.role} · ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
         actions={
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-2xs font-bold text-emerald-400 uppercase tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />

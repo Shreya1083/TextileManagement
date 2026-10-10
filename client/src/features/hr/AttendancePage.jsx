@@ -25,7 +25,7 @@ export default function AttendancePage() {
     <div className="page-root">
       <PageHeader
         title="Attendance"
-        subtitle={`${new Date().toLocaleDateString('en-IN', { weekday:'long', day:'2-digit', month:'short', year:'numeric' })} — mark shift attendance`}
+        subtitle={`Marked by ${user?.name} · ${new Date().toLocaleDateString('en-IN', { weekday:'long', day:'2-digit', month:'short', year:'numeric' })}`}
         actions={<button className="btn-secondary btn-sm"><ScanLine size={13} />QR Session</button>}
       />
 

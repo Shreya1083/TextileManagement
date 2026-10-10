@@ -3,6 +3,7 @@ import { Plus, Wrench, ChevronRight } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
+import { useAuth }    from '../../context/AuthContext'
 import { mockMachines } from '../../mocks/data'
 import { cn } from '../../lib/utils'
 
@@ -13,6 +14,7 @@ const STATUS_DOT = {
 }
 
 export default function MachineBoard() {
+  const { user } = useAuth()
   const [selected, setSelected]   = useState(null)
   const [showAssign, setShowAssign] = useState(false)
   const [stageFilter, setStageFilter] = useState('ALL')
@@ -23,7 +25,7 @@ export default function MachineBoard() {
     <div className="page-root">
       <PageHeader
         title="Machine Board"
-        subtitle="Machine status and work assignments"
+        subtitle={`Supervised by ${user?.name} · Machine status and work assignments`}
         actions={
           <>
             <button className="btn-secondary btn-sm"><Wrench size={13} />Manage</button>

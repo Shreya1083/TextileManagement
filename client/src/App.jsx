@@ -1,11 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { useAuth }      from './context/AuthContext'
+import { ROLE_HOME }    from './context/AuthContext'
 import { ProtectedRoute } from './app/ProtectedRoute'
-import { AppLayout } from './components/layout/AppLayout'
+import { AppLayout }      from './components/layout/AppLayout'
 
-// Public pages
-import LoginPage        from './features/auth/LoginPage'
-import TrackingPage     from './features/tracking/TrackingPage'
+// Public
+import LoginPage          from './features/auth/LoginPage'
+import TrackingPage       from './features/tracking/TrackingPage'
 import { NotFound, Forbidden } from './features/auth/NotFound'
 
 // Dashboards
@@ -13,23 +15,23 @@ import OwnerDashboard   from './features/dashboard/OwnerDashboard'
 import FloorDashboard   from './features/dashboard/FloorDashboard'
 
 // Inventory
-import StockPage        from './features/inventory/StockPage'
-import SuppliersPage    from './features/inventory/SuppliersPage'
-import GateEntryPage    from './features/inventory/GateEntryPage'
+import StockPage          from './features/inventory/StockPage'
+import SuppliersPage      from './features/inventory/SuppliersPage'
+import GateEntryPage      from './features/inventory/GateEntryPage'
 import PurchaseOrdersPage from './features/inventory/PurchaseOrdersPage'
 
 // Orders
-import OrdersPage       from './features/orders/OrdersPage'
-import BuyersPage       from './features/orders/BuyersPage'
+import OrdersPage  from './features/orders/OrdersPage'
+import BuyersPage  from './features/orders/BuyersPage'
 
 // Production
-import MachineBoard     from './features/production/MachineBoard'
-import ProductionEntry  from './features/production/ProductionEntry'
-import DowntimePage     from './features/production/DowntimePage'
+import MachineBoard    from './features/production/MachineBoard'
+import ProductionEntry from './features/production/ProductionEntry'
+import DowntimePage    from './features/production/DowntimePage'
 
 // Quality
-import InspectionQueue  from './features/quality/InspectionQueue'
-import DefectReport     from './features/quality/DefectReport'
+import InspectionQueue from './features/quality/InspectionQueue'
+import DefectReport    from './features/quality/DefectReport'
 
 // Dispatch
 import FinishedStockPage from './features/dispatch/FinishedStockPage'
@@ -37,28 +39,35 @@ import DispatchPage      from './features/dispatch/DispatchPage'
 import InvoicesPage      from './features/dispatch/InvoicesPage'
 
 // HR
-import WorkersPage      from './features/hr/WorkersPage'
-import AttendancePage   from './features/hr/AttendancePage'
-import WagesPage        from './features/hr/WagesPage'
+import WorkersPage    from './features/hr/WorkersPage'
+import AttendancePage from './features/hr/AttendancePage'
+import WagesPage      from './features/hr/WagesPage'
 
 // Finance
-import CostingPage      from './features/finance/CostingPage'
-import PnLPage          from './features/finance/PnLPage'
+import CostingPage from './features/finance/CostingPage'
+import PnLPage     from './features/finance/PnLPage'
 
 // Settings
-import MillSettings     from './features/settings/MillSettings'
-import MasterData       from './features/settings/MasterData'
-import UsersPage        from './features/settings/UsersPage'
+import MillSettings from './features/settings/MillSettings'
+import MasterData   from './features/settings/MasterData'
+import UsersPage    from './features/settings/UsersPage'
+
+/** Redirect `/` to the user's role-specific home page, or `/login` if not signed in */
+function RootRedirect() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  return <Navigate to={ROLE_HOME[user.role] || '/dashboard'} replace />
+}
 
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
         {/* Public */}
-        <Route path="/login"  element={<LoginPage />} />
-        <Route path="/track"  element={<TrackingPage />} />
-        <Route path="/403"    element={<Forbidden />} />
-        <Route path="/"       element={<Navigate to="/dashboard" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/track" element={<TrackingPage />} />
+        <Route path="/403"   element={<Forbidden />} />
+        <Route path="/"      element={<RootRedirect />} />
 
         {/* Protected — inside AppLayout */}
         <Route element={<ProtectedRoute />}>
@@ -108,7 +117,7 @@ export default function App() {
           </Route>
         </Route>
 
-        {/* Catch all */}
+        {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AuthProvider>

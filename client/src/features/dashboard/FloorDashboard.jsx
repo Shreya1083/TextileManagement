@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Zap, AlertTriangle, Clock, Activity, RefreshCw, ChevronRight } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { useAuth }    from '../../context/AuthContext'
+import { ROLE_LABELS } from '../../context/AuthContext'
 import { mockMachines, mockStats } from '../../mocks/data'
 import { cn } from '../../lib/utils'
 
@@ -76,6 +78,7 @@ function MachineCard({ m }) {
 }
 
 export default function FloorDashboard() {
+  const { user } = useAuth()
   const [filter, setFilter] = useState('ALL')
   const counts = {
     RUNNING:   mockMachines.filter(m => m.status === 'RUNNING').length,
@@ -88,8 +91,8 @@ export default function FloorDashboard() {
   return (
     <div className="page-root">
       <PageHeader
-        title="Floor Monitor"
-        subtitle="Live machine board — production status"
+        title={`Floor Monitor — ${user?.name?.split(' ')[0]}`}
+        subtitle={`${ROLE_LABELS[user?.role] || user?.role} · Live machine board — production status`}
         actions={
           <button className="btn-secondary btn-sm">
             <RefreshCw size={13} />Refresh

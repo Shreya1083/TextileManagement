@@ -3,12 +3,14 @@ import { Eye, ScanLine, CheckCircle, RotateCcw, XCircle } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { Badge }      from '../../components/ui/Badge'
+import { useAuth }    from '../../context/AuthContext'
 import { mockRolls }  from '../../mocks/data'
 import { formatDate, cn } from '../../lib/utils'
 
 const DEFECTS = ['Colour Mismatch','Uneven Weave','Stain','Hole','Other']
 
 export default function InspectionQueue() {
+  const { user } = useAuth()
   const [selected, setSelected] = useState(null)
   const [result, setResult]     = useState('PASSED')
   const [defects, setDefects]   = useState([])
@@ -30,7 +32,7 @@ export default function InspectionQueue() {
     <div className="page-root">
       <PageHeader
         title="Inspection Queue"
-        subtitle={`${queue.length} rolls awaiting QC — sorted oldest first`}
+        subtitle={`Inspector: ${user?.name} · ${queue.length} rolls awaiting QC — sorted oldest first`}
         actions={<button className="btn-secondary btn-sm"><ScanLine size={13} />Scan Roll QR</button>}
       />
 
