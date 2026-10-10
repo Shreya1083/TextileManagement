@@ -7,6 +7,8 @@ import { AppLayout }      from './components/layout/AppLayout'
 
 // Public
 import LoginPage          from './features/auth/LoginPage'
+import SignInPage         from './features/auth/SignInPage'
+import HomePage           from './features/home/HomePage'
 import TrackingPage       from './features/tracking/TrackingPage'
 import { NotFound, Forbidden } from './features/auth/NotFound'
 
@@ -55,10 +57,10 @@ import MillSettings from './features/settings/MillSettings'
 import MasterData   from './features/settings/MasterData'
 import UsersPage    from './features/settings/UsersPage'
 
-/** Redirect `/` to the user's role-specific home page, or `/login` if not signed in */
+/** Show the public landing page when unauthenticated; redirect authenticated users to their role home */
 function RootRedirect() {
   const { user } = useAuth()
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <HomePage />
   return <Navigate to={ROLE_HOME[user.role] || '/dashboard'} replace />
 }
 
@@ -67,10 +69,11 @@ export default function App() {
     <AuthProvider>
       <Routes>
         {/* Public */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/track" element={<TrackingPage />} />
-        <Route path="/403"   element={<Forbidden />} />
-        <Route path="/"      element={<RootRedirect />} />
+        <Route path="/login"  element={<LoginPage />} />
+        <Route path="/signin" element={<SignInPage />} />
+        <Route path="/track"  element={<TrackingPage />} />
+        <Route path="/403"    element={<Forbidden />} />
+        <Route path="/"       element={<RootRedirect />} />
 
         {/* Protected — inside AppLayout */}
         <Route element={<ProtectedRoute />}>
