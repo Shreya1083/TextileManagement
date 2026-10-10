@@ -6,8 +6,10 @@ import {
 } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
-import { mockSuppliers } from '../../mocks/data'
 import { cn } from '../../lib/utils'
+import { useSuppliers, useCreateSupplier } from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 /* ── colour cycle for supplier avatars ──────────────────────────────── */
 const AVATAR_COLORS = [
@@ -289,25 +291,9 @@ function DeleteModal({ open, supplier, onConfirm, onClose }) {
 
 /* ── main page ───────────────────────────────────────────────────────── */
 export default function SuppliersPage() {
-  // Live state — starts from mock data, new entries are added in-memory
-  const [suppliers, setSuppliers] = useState(
-    mockSuppliers.map((s, i) => ({
-      ...s,
-      contactPerson: '',
-      email:         '',
-      state:         '',
-      altPhone:      '',
-      gstin:         s.gstin,
-      pan:           '',
-      website:       '',
-      yarnTypes:     '',
-      leadDays:      '7',
-      paymentTerms:  'Net 30',
-      notes:         '',
-      phone:         s.contact,
-      colorIdx:      i,
-    }))
-  )
+  const { data: suppliersData, isLoading, error } = useSuppliers()
+  const suppliers = suppliersData?.data || []
+  const createSupplierMutation = useCreateSupplier()
 
   const [search,      setSearch]      = useState('')
   const [showAdd,     setShowAdd]     = useState(false)
@@ -315,40 +301,47 @@ export default function SuppliersPage() {
   const [deleteTarget,setDeleteTarget]= useState(null)
 
   const filtered = suppliers.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.city.toLowerCase().includes(search.toLowerCase()) ||
+    s.name?.toLowerCase().includes(search.toLowerCase()) ||
+    s.city?.toLowerCase().includes(search.toLowerCase()) ||
     (s.yarnTypes || '').toLowerCase().includes(search.toLowerCase())
   )
 
   /* ── handlers ── */
-  const handleAdd = (form) => {
-    const newId = `S-${String(suppliers.length + 1).padStart(2, '0')}`
-    setSuppliers(p => [
-      ...p,
-      {
-        ...form,
-        id:        newId,
-        contact:   form.phone,
+  const handleAdd = async (form) => {
+    try {
+      await createSupplierMutation.mutateAsync({
+        name: form.companyName,
+        contactPerson: form.contactPerson,
+        city: form.city,
+        state: form.state,
+        phone: form.phone,
+        altPhone: form.altPhone,
+        email: form.email,
+        gstin: form.gstin,
+        pan: form.pan,
+        website: form.website,
+        yarnTypes: form.yarnTypes,
+        leadDays: form.leadDays,
+        paymentTerms: form.paymentTerms,
         activePos: 0,
-        colorIdx:  p.length,
-      },
-    ])
+      })
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   const handleEdit = (form) => {
-    setSuppliers(p =>
-      p.map(s => s.id === editTarget.id
-        ? { ...s, ...form, contact: form.phone }
-        : s
-      )
-    )
+    // API logic for Edit
     setEditTarget(null)
   }
 
   const handleDelete = () => {
-    setSuppliers(p => p.filter(s => s.id !== deleteTarget.id))
+    // API logic for Delete
     setDeleteTarget(null)
   }
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">

@@ -13,7 +13,7 @@ const NAV = [
   {
     group: 'Overview',
     items: [
-      { to: '/dashboard',          label: 'Dashboard',          icon: LayoutDashboard, roles: ['owner'] },
+      { to: '/dashboard',          label: 'Dashboard',          icon: LayoutDashboard, roles: ['owner', 'supervisor', 'inspector', 'store', 'accounts'] },
       { to: '/floor',              label: 'Floor Monitor',       icon: Factory,         roles: ['owner','supervisor','inspector'] },
       { to: '/eod',                label: 'End-of-Day Report',   icon: CalendarCheck,   roles: ['owner','supervisor','accounts'] },
       // Worker-only home
@@ -65,7 +65,7 @@ const NAV = [
       { to: '/hr/dashboard',    label: 'Worker Dashboard', icon: UserCheck,  roles: ['owner','supervisor','accounts'] },
       { to: '/hr/workers',      label: 'Workers',          icon: Users,      roles: ['owner','accounts'] },
       { to: '/hr/attendance',   label: 'Attendance',       icon: UserCheck,  roles: ['owner','supervisor','accounts'] },
-      { to: '/hr/wages',        label: 'Wages',            icon: Wallet,     roles: ['owner','accounts'] },
+      { to: '/hr/wages',        label: 'Wages / Payments', icon: Wallet,     roles: ['owner','accounts','supervisor'] },
       { to: '/finance/costing', label: 'Order Costing',    icon: BarChart3,  roles: ['owner'] },
       { to: '/finance/pnl',     label: 'P&L Report',    icon: DollarSign, roles: ['owner'] },
     ],

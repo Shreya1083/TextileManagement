@@ -1,0 +1,31 @@
+
+model ProductionEntry {
+  id        String   @id @default(cuid())
+  date      DateTime
+  shift     String
+  machine   String
+  order     String
+  output    Float
+  waste     Float
+  operator  String
+  rolls     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("production_entries")
+}
+
+model Downtime {
+  id        String   @id @default(cuid())
+  machine   String
+  name      String
+  start     DateTime
+  end       DateTime?
+  reason    String
+  notes     String?
+  status    String   // OPEN, CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("downtimes")
+}

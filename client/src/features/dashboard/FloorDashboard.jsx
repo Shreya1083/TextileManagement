@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Zap, AlertTriangle, Clock, Activity, RefreshCw, ChevronRight } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 import { useAuth }    from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
-import { mockMachines, mockStats } from '../../mocks/data'
+import { useFloorStats, useMachines } from '../../hooks/useAPI'
 import { cn } from '../../lib/utils'
 
 const STATUS = {
@@ -79,13 +81,39 @@ function MachineCard({ m }) {
 export default function FloorDashboard() {
   const { user } = useAuth()
   const [filter, setFilter] = useState('ALL')
+  
+  // Fetch data
+  const { data: statsData, isLoading: statsLoading, error: statsError, refetch } = useFloorStats()
+  const { data: machinesData, isLoading: machinesLoading } = useMachines()
+  
+  const stats = statsData?.data || {}
+  const allMachines = machinesData?.data || []
+  
   const counts = {
-    RUNNING:   mockMachines.filter(m => m.status === 'RUNNING').length,
-    IDLE:      mockMachines.filter(m => m.status === 'IDLE').length,
-    BREAKDOWN: mockMachines.filter(m => m.status === 'BREAKDOWN').length,
+    RUNNING:   allMachines.filter(m => m.status === 'RUNNING').length,
+    IDLE:      allMachines.filter(m => m.status === 'IDLE').length,
+    BREAKDOWN: allMachines.filter(m => m.status === 'BREAKDOWN').length,
   }
-  const filtered     = filter === 'ALL' ? mockMachines : mockMachines.filter(m => m.status === filter)
-  const totalOutput  = mockMachines.reduce((s, m) => s + m.output, 0)
+  const filtered     = filter === 'ALL' ? allMachines : allMachines.filter(m => m.status === filter)
+  const totalOutput  = allMachines.reduce((s, m) => s + (m.output || 0), 0)
+
+  // Loading state
+  if (statsLoading || machinesLoading) {
+    return (
+      <div className="page-root">
+        <LoadingSpinner />
+      </div>
+    )
+  }
+
+  // Error state
+  if (statsError) {
+    return (
+      <div className="page-root">
+        <ErrorMessage message={statsError.message} />
+      </div>
+    )
+  }
 
   return (
     <div className="page-root">
@@ -93,7 +121,7 @@ export default function FloorDashboard() {
         title={`Floor Monitor — ${user?.name?.split(' ')[0]}`}
         subtitle={`${ROLE_LABELS[user?.role] || user?.role} · Live machine board — production status`}
         actions={
-          <button className="btn-secondary btn-sm">
+          <button onClick={() => refetch()} className="btn-secondary btn-sm">
             <RefreshCw size={13} />Refresh
           </button>
         }
@@ -102,7 +130,7 @@ export default function FloorDashboard() {
       {/* Summary strip */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { icon: Zap,           bg: 'bg-emerald-500/15', clr: 'text-emerald-400', val: counts.RUNNING,              lbl: 'Running',        sub: `of ${mockStats.machines.total} machines` },
+          { icon: Zap,           bg: 'bg-emerald-500/15', clr: 'text-emerald-400', val: counts.RUNNING,              lbl: 'Running',        sub: `of ${stats.machines?.total || allMachines.length} machines` },
           { icon: Clock,         bg: 'bg-amber-500/15',   clr: 'text-amber-400',   val: counts.IDLE,                  lbl: 'Idle',           sub: 'Awaiting assignment' },
           { icon: AlertTriangle, bg: 'bg-red-500/15',     clr: 'text-red-400',     val: counts.BREAKDOWN,             lbl: 'Breakdown',      sub: 'Needs maintenance' },
           { icon: Activity,      bg: 'bg-primary-500/15', clr: 'text-primary-400', val: `${totalOutput.toLocaleString()} m`, lbl: 'Total output', sub: 'Today across all machines' },
@@ -123,7 +151,7 @@ export default function FloorDashboard() {
       {/* Filter tabs */}
       <div className="flex items-center gap-2 flex-wrap">
         {[
-          { key: 'ALL', label: `All Machines (${mockMachines.length})` },
+          { key: 'ALL', label: `All Machines (${allMachines.length})` },
           { key: 'RUNNING',   label: `Running (${counts.RUNNING})` },
           { key: 'IDLE',      label: `Idle (${counts.IDLE})` },
           { key: 'BREAKDOWN', label: `Breakdown (${counts.BREAKDOWN})` },
@@ -142,9 +170,15 @@ export default function FloorDashboard() {
       </div>
 
       {/* Machine grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.map(m => <MachineCard key={m.id} m={m} />)}
-      </div>
+      {filtered.length === 0 ? (
+        <div className="card py-12 text-center text-sm text-zinc-500">
+          No machines found for this filter
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map(m => <MachineCard key={m.id} m={m} />)}
+        </div>
+      )}
     </div>
   )
 }

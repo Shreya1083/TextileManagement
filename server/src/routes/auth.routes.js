@@ -1,33 +1,41 @@
-import express from 'express';
-import * as authController from '../controllers/auth.controller.js';
-import { authenticate, authorize, requireFreshAuth } from '../middleware/auth.js';
-import { loginLimiter, strictLimiter } from '../middleware/security.js';
-import {
-  loginValidator,
-  changePasswordValidator,
-  createUserValidator,
-  updateUserValidator,
-  deleteUserValidator,
-  refreshTokenValidator,
-} from '../validators/auth.validator.js';
+import express from 'express'
+import rateLimit from 'express-rate-limit'
+import { login, getCurrentUser, logout } from '../controllers/auth.controller.js'
+import { authenticate } from '../middleware/auth.js'
 
-const router = express.Router();
+const router = express.Router()
 
-// Public routes with rate limiting
-router.post('/login', loginLimiter, loginValidator, authController.login);
-router.post('/refresh', refreshTokenValidator, authController.refreshToken);
+// Rate limiter for login endpoint (5 attempts per 15 minutes)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: {
+    success: false,
+    message: 'Too many login attempts. Please try again after 15 minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
-// Protected routes (require authentication)
-router.get('/me', authenticate, authController.getProfile);
-router.post('/logout', authenticate, authController.logout);
-router.post('/logout-all', authenticate, strictLimiter, authController.logoutAll);
-router.get('/sessions', authenticate, authController.getSessions);
-router.post('/change-password', authenticate, strictLimiter, changePasswordValidator, authController.changePassword);
+/**
+ * @route   POST /api/auth/login
+ * @desc    Login user
+ * @access  Public
+ */
+router.post('/login', loginLimiter, login)
 
-// User management routes (Owner only with fresh authentication for sensitive operations)
-router.post('/users', authenticate, authorize('OWNER'), createUserValidator, authController.createUser);
-router.get('/users', authenticate, authorize('OWNER'), authController.getAllUsers);
-router.put('/users/:id', authenticate, authorize('OWNER'), requireFreshAuth(15), updateUserValidator, authController.updateUser);
-router.delete('/users/:id', authenticate, authorize('OWNER'), requireFreshAuth(5), deleteUserValidator, authController.deleteUser);
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get current user profile
+ * @access  Private
+ */
+router.get('/me', authenticate, getCurrentUser)
 
-export default router;
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout user
+ * @access  Private
+ */
+router.post('/logout', authenticate, logout)
+
+export default router

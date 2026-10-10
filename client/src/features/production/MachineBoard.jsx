@@ -3,8 +3,10 @@ import { Plus, Wrench, ChevronRight } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 import { useAuth }    from '../../context/AuthContext'
-import { mockMachines } from '../../mocks/data'
+import { useProductionMachines } from '../../hooks/useAPI'
 import { cn } from '../../lib/utils'
 
 const STATUS_DOT = {
@@ -18,8 +20,15 @@ export default function MachineBoard() {
   const [selected, setSelected]   = useState(null)
   const [showAssign, setShowAssign] = useState(false)
   const [stageFilter, setStageFilter] = useState('ALL')
-  const stages   = ['ALL', ...new Set(mockMachines.map(m => m.stage))]
-  const filtered = stageFilter === 'ALL' ? mockMachines : mockMachines.filter(m => m.stage === stageFilter)
+  
+  const { data: machinesData, isLoading, error } = useProductionMachines()
+  const allMachines = machinesData?.data || []
+  
+  const stages   = ['ALL', ...new Set(allMachines.map(m => m.stage))]
+  const filtered = stageFilter === 'ALL' ? allMachines : allMachines.filter(m => m.stage === stageFilter)
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">
@@ -48,7 +57,7 @@ export default function MachineBoard() {
             {filtered.map(m => (
               <tr key={m.id} onClick={() => setSelected(m)} className="cursor-pointer">
                 <td>
-                  <p className="font-mono text-2xs text-zinc-600">{m.id}</p>
+                  <p className="font-mono text-2xs text-zinc-600">{m.machineId}</p>
                   <p className="font-semibold text-zinc-200">{m.name}</p>
                 </td>
                 <td><span className="badge badge-purple">{m.stage}</span></td>
@@ -97,26 +106,47 @@ export default function MachineBoard() {
       </Modal>
 
       <Modal open={showAssign} onClose={() => setShowAssign(false)} title="New Work Assignment" size="lg">
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="label">Order</label>
-            <select className="input"><option>ORD-2028</option><option>ORD-2027</option></select>
+        <form onSubmit={async (e) => {
+          e.preventDefault()
+          const fd = new FormData(e.target)
+          const data = Object.fromEntries(fd.entries())
+          try {
+            await fetch(`http://localhost:5000/api/data/machines/${data.machineId}/start`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderId: data.orderId, operatorId: data.operatorId })
+            })
+            setShowAssign(false)
+            window.location.reload()
+          } catch(err) {
+            console.error(err)
+          }
+        }}>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="label">Order Number</label>
+              <input name="orderId" className="input" placeholder="e.g. ORD-2028" required />
+            </div>
+            <div><label className="label">Machine</label>
+              <select name="machineId" className="input" required>
+                {allMachines.filter(m => m.status === 'IDLE').map(m => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.machineId})</option>
+                ))}
+              </select>
+            </div>
+            <div><label className="label">Operator ID</label>
+              <input name="operatorId" className="input" placeholder="e.g. W-001" required />
+            </div>
+            <div><label className="label">Planned Qty (m)</label><input className="input" type="number" /></div>
+            <div><label className="label">Start Date</label><input className="input" type="date" required defaultValue={new Date().toISOString().split('T')[0]} /></div>
+            <div><label className="label">Shift</label>
+              <select className="input"><option>Morning</option><option>Afternoon</option><option>Night</option></select>
+            </div>
           </div>
-          <div><label className="label">Machine</label>
-            <select className="input"><option>M-04 — Weaver B2 (Idle)</option></select>
+          <div className="flex justify-end gap-2 pt-4">
+            <button type="button" className="btn-secondary" onClick={() => setShowAssign(false)}>Cancel</button>
+            <button type="submit" className="btn-primary">Assign Machine</button>
           </div>
-          <div><label className="label">Stage</label>
-            <select className="input"><option>Spinning</option><option>Weaving</option><option>Dyeing</option><option>Finishing</option></select>
-          </div>
-          <div><label className="label">Planned Qty (m)</label><input className="input" type="number" /></div>
-          <div><label className="label">Start Date</label><input className="input" type="date" /></div>
-          <div><label className="label">Shift</label>
-            <select className="input"><option>Morning</option><option>Afternoon</option><option>Night</option></select>
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 pt-4">
-          <button className="btn-secondary" onClick={() => setShowAssign(false)}>Cancel</button>
-          <button className="btn-primary">Assign Machine</button>
-        </div>
+        </form>
       </Modal>
     </div>
   )

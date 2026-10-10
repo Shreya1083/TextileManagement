@@ -11,7 +11,13 @@ import {
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { useAuth }     from '../../context/AuthContext'
 import { formatCurrencyFull, cn } from '../../lib/utils'
-import { mockWorkerProfiles, ATTENDANCE_LABELS } from '../../mocks/data'
+
+const ATTENDANCE_LABELS = {
+  P: { label: 'Present', color: 'bg-emerald-500', border: 'border-emerald-500/20 text-emerald-400 bg-emerald-500/10' },
+  A: { label: 'Absent',  color: 'bg-red-500',     border: 'border-red-500/20 text-red-400 bg-red-500/10' },
+  H: { label: 'Half Day',color: 'bg-amber-500',   border: 'border-amber-500/20 text-amber-400 bg-amber-500/10' },
+  S: { label: 'Sunday',  color: 'bg-zinc-700',    border: 'border-zinc-700/50 text-zinc-500' },
+}
 
 /* ── colour per worker ────────────────────────────────────────────────── */
 const WORKER_COLORS = [
@@ -99,6 +105,33 @@ function WageCard({ worker }) {
   const otPay   = worker.overtimeHrs * otRate
   const net     = basic + halfPay + otPay - worker.deductions
 
+  const handleDownloadSlip = () => {
+    const csvRows = [
+      ['Textile ERP - Pay Slip'],
+      ['Worker Name', worker.name],
+      ['Worker ID', worker.id],
+      ['Department', worker.dept],
+      ['Role', worker.role],
+      [''],
+      ['Description', 'Amount (INR)'],
+      [`Basic pay (${worker.daysPresent} days × ${worker.wage})`, basic],
+      [`Half days (${worker.halfDays} × ${worker.wage/2})`, halfPay],
+      [`Overtime (${worker.overtimeHrs} hrs × ${otRate}/hr)`, otPay],
+      ['Deductions', `-${worker.deductions}`],
+      [''],
+      ['Net Pay', net]
+    ];
+    
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `PaySlip_${worker.id}_Oct2026.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-3">
       <div className="bg-zinc-800/50 rounded-2xl p-5 space-y-3">
@@ -124,7 +157,7 @@ function WageCard({ worker }) {
         </div>
       </div>
 
-      <button className="btn-secondary w-full gap-2">
+      <button onClick={handleDownloadSlip} className="btn-secondary w-full gap-2">
         <Download size={13} />Download Pay Slip
       </button>
     </div>
@@ -146,19 +179,28 @@ const ChartTip = ({ active, payload, label }) => {
   )
 }
 
+import { useWorkerProfiles } from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
+
 /* ── main component ──────────────────────────────────────────────────── */
 export default function MyDashboard() {
   const { user }     = useAuth()
   const [tab, setTab] = useState('attendance')
 
-  // Find this worker's full profile using workerId from the logged-in user
-  const profile = mockWorkerProfiles.find(w => w.id === user?.workerId)
-    || mockWorkerProfiles[0] // fallback for demo
+  const { data: profilesData, isLoading, error } = useWorkerProfiles()
+  const profiles = profilesData?.data || []
+
+  // Find this worker's full profile using name from the logged-in user
+  const profile = profiles.find(w => w.name === user?.name) || profiles[0]
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error || !profile) return <div className="page-root"><ErrorMessage message={error?.message || 'No profile found'} /></div>
 
   const color       = getWorkerColor(profile.id)
   const attendPct   = Math.round((profile.daysPresent / (profile.daysPresent + profile.daysAbsent + profile.halfDays)) * 100)
-  const netPay      = Object.values(profile.monthlyWage)[0]
-  const wageHistory = Object.entries(profile.monthlyWage).map(([m, v]) => ({ month: m, wage: v })).reverse()
+  const netPay      = profile.monthlyWage ? Object.values(profile.monthlyWage)[0] : 0
+  const wageHistory = profile.monthlyWage ? Object.entries(profile.monthlyWage).map(([m, v]) => ({ month: m, wage: v })).reverse() : []
 
   const today = new Date().toLocaleDateString('en-IN', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -206,6 +248,19 @@ export default function MyDashboard() {
                   Joined {new Date(profile.joined).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
                 </span>
                 {profile.machine && (
+                  <>
+                    <span className="text-zinc-700">·</span>
+                    <span className="text-xs text-primary-400 font-semibold">{profile.machine}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* QR Code */}
+            <div className="ml-auto bg-white p-2 rounded-xl">
+              <QRCode value={profile.id} size={70} />
+            </div>
+          </div>
                   <>
                     <span className="text-zinc-700">·</span>
                     <span className="text-xs text-zinc-500 font-mono">{profile.machine}</span>

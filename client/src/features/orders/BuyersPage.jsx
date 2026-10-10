@@ -8,6 +8,9 @@ import {
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { cn }         from '../../lib/utils'
+import { useBuyers, useCreateBuyer } from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 /* ── initial data ────────────────────────────────────────────────────── */
 const INITIAL_BUYERS = [
@@ -413,17 +416,44 @@ function BuyerRegisterModal({ open, onClose, onSave, existingCount }) {
 }
 
 /* ── main page ──────────────────────────────────────────────────────── */
+
 export default function BuyersPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [search,  setSearch]  = useState('')
-  const [buyers,  setBuyers]  = useState(INITIAL_BUYERS)
+  
+  const { data: buyersData, isLoading, error } = useBuyers()
+  const buyers = buyersData?.data || []
+  const createBuyerMutation = useCreateBuyer()
 
-  const handleSave = (buyer) => setBuyers(p => [...p, buyer])
+  const handleSave = async (buyer) => {
+    try {
+      await createBuyerMutation.mutateAsync({
+        buyerId: buyer.buyerId,
+        name: buyer.companyName,
+        email: buyer.loginEmail,
+        phone: buyer.phone,
+        address: buyer.address,
+        city: buyer.city,
+        state: buyer.state,
+        pincode: buyer.pincode,
+        type: buyer.type,
+        gstin: buyer.gstin,
+        pan: buyer.pan,
+        creditLimit: Number(buyer.creditLimit),
+        paymentTerms: buyer.paymentTerms,
+      })
+    } catch (err) {
+      console.error('Failed to register buyer', err)
+    }
+  }
 
   const filtered = buyers.filter(b =>
-    b.name.toLowerCase().includes(search.toLowerCase()) ||
-    b.city.toLowerCase().includes(search.toLowerCase())
+    b.name?.toLowerCase().includes(search.toLowerCase()) ||
+    b.city?.toLowerCase().includes(search.toLowerCase())
   )
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">

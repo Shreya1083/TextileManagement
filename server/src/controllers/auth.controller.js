@@ -1,160 +1,197 @@
-import { asyncHandler } from '../middleware/errorHandler.js';
-import { successResponse, errorResponse } from '../utils/response.js';
-import * as authService from '../services/auth.service.js';
-import { sessionManager } from '../utils/sessionManager.js';
+import { v4 as uuidv4 } from 'uuid'
+import prisma from '../config/database.js'
+import { verifyPassword } from '../utils/password.js'
+import { generateToken, getTokenExpiration } from '../utils/jwt.js'
 
 /**
- * @route   POST /api/auth/login
- * @desc    Enhanced login with session management
- * @access  Public
+ * Login user
+ * POST /api/auth/login
  */
-export const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+export async function login(req, res) {
+  try {
+    const { email, password } = req.body
 
-  const result = await authService.loginUser(
-    email, 
-    password, 
-    req.ip,
-    req.get('User-Agent')
-  );
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required',
+      })
+    }
 
-  // Set secure cookie with session ID
-  res.cookie('sessionId', result.sessionId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    })
 
-  res.json(successResponse(result, 'Login successful'));
-});
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      })
+    }
+
+    // Check if account is locked
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const remainingMinutes = Math.ceil((user.lockedUntil - new Date()) / 60000)
+      return res.status(403).json({
+        success: false,
+        message: `Account is locked. Try again in ${remainingMinutes} minute(s)`,
+      })
+    }
+
+    // Verify password
+    const isValidPassword = await verifyPassword(user.password, password)
+
+    if (!isValidPassword) {
+      // Increment failed login count
+      const failedCount = user.failedLoginCount + 1
+      const updateData = {
+        failedLoginCount: failedCount,
+      }
+
+      // Lock account after 5 failed attempts
+      if (failedCount >= 5) {
+        updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: updateData,
+      })
+
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      })
+    }
+
+    // Check if account is active
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is inactive. Please contact administrator.',
+      })
+    }
+
+    // Generate session ID and token
+    const sessionId = uuidv4()
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      sessionId,
+    })
+
+    // Get request metadata
+    const ipAddress = req.ip || req.connection.remoteAddress
+    const userAgent = req.headers['user-agent']
+
+    // Create session record
+    await prisma.userSession.create({
+      data: {
+        sessionId,
+        userId: user.id,
+        token,
+        ipAddress,
+        userAgent,
+        expiresAt: getTokenExpiration(),
+      },
+    })
+
+    // Update user login info and reset failed count
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: new Date(),
+        lastLoginIp: ipAddress,
+        failedLoginCount: 0,
+        lockedUntil: null,
+      },
+    })
+
+    // Return success response
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          isActive: user.isActive,
+        },
+        token,
+      },
+    })
+  } catch (error) {
+    console.error('Login error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Login failed',
+    })
+  }
+}
 
 /**
- * @route   POST /api/auth/logout
- * @desc    Logout user and invalidate session
- * @access  Private
+ * Get current user
+ * GET /api/auth/me
  */
-export const logout = asyncHandler(async (req, res) => {
-  const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
-  
-  const result = await authService.logoutUser(
-    req.user.id,
-    sessionId,
-    req.ip
-  );
+export async function getCurrentUser(req, res) {
+  try {
+    // User is already attached by authenticate middleware
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+    })
 
-  res.clearCookie('sessionId');
-  res.json(successResponse(result, result.message));
-});
+    res.json({
+      success: true,
+      data: user,
+    })
+  } catch (error) {
+    console.error('Get current user error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user data',
+    })
+  }
+}
 
 /**
- * @route   POST /api/auth/logout-all
- * @desc    Logout from all devices
- * @access  Private
+ * Logout user
+ * POST /api/auth/logout
  */
-export const logoutAll = asyncHandler(async (req, res) => {
-  const result = await authService.logoutAllDevices(req.user.id, req.ip);
+export async function logout(req, res) {
+  try {
+    // Deactivate current session
+    await prisma.userSession.updateMany({
+      where: {
+        userId: req.user.id,
+        sessionId: req.sessionId,
+      },
+      data: {
+        isActive: false,
+      },
+    })
 
-  res.clearCookie('sessionId');
-  res.json(successResponse(result, result.message));
-});
-
-/**
- * @route   GET /api/auth/sessions
- * @desc    Get user's active sessions
- * @access  Private
- */
-export const getSessions = asyncHandler(async (req, res) => {
-  const sessions = await sessionManager.getUserSessions(req.user.id);
-
-  res.json(successResponse(sessions, 'Sessions retrieved successfully'));
-});
-
-/**
- * @route   POST /api/auth/refresh
- * @desc    Refresh access token
- * @access  Public
- */
-export const refreshToken = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body;
-
-  const result = await authService.refreshToken(refreshToken, req.ip);
-
-  res.json(successResponse(result, 'Token refreshed successfully'));
-});
-
-/**
- * @route   GET /api/auth/me
- * @desc    Get current user profile
- * @access  Private
- */
-export const getProfile = asyncHandler(async (req, res) => {
-  const user = await authService.getUserProfile(req.user.id);
-
-  res.json(successResponse(user));
-});
-
-/**
- * @route   POST /api/auth/change-password
- * @desc    Change user password with enhanced security
- * @access  Private
- */
-export const changePassword = asyncHandler(async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  const result = await authService.changePassword(
-    req.user.id,
-    currentPassword,
-    newPassword,
-    req.ip
-  );
-
-  // Clear all sessions on password change
-  res.clearCookie('sessionId');
-
-  res.json(successResponse(result, result.message));
-});
-
-/**
- * @route   POST /api/auth/users
- * @desc    Create new user
- * @access  Private (Owner only)
- */
-export const createUser = asyncHandler(async (req, res) => {
-  const user = await authService.createUser(req.body);
-
-  res.status(201).json(successResponse(user, 'User created successfully'));
-});
-
-/**
- * @route   GET /api/auth/users
- * @desc    Get all users
- * @access  Private (Owner only)
- */
-export const getAllUsers = asyncHandler(async (req, res) => {
-  const result = await authService.getAllUsers(req.query);
-
-  res.json(successResponse(result.users, 'Users retrieved successfully', result.pagination));
-});
-
-/**
- * @route   PUT /api/auth/users/:id
- * @desc    Update user
- * @access  Private (Owner only)
- */
-export const updateUser = asyncHandler(async (req, res) => {
-  const user = await authService.updateUser(req.params.id, req.body);
-
-  res.json(successResponse(user, 'User updated successfully'));
-});
-
-/**
- * @route   DELETE /api/auth/users/:id
- * @desc    Delete user
- * @access  Private (Owner only)
- */
-export const deleteUser = asyncHandler(async (req, res) => {
-  const result = await authService.deleteUser(req.params.id);
-
-  res.json(successResponse(null, result.message));
-});
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    })
+  } catch (error) {
+    console.error('Logout error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed',
+    })
+  }
+}

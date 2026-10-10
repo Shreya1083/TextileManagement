@@ -1,18 +1,21 @@
 import { useState } from 'react'
 import { Search, AlertTriangle, Plus } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { ExportMenu } from '../../components/ui/ExportMenu'
 import { useAuth }    from '../../context/AuthContext'
-import { mockYarnStock } from '../../mocks/data'
+import { useStock } from '../../hooks/useAPI'
 import { exportPDF, exportExcel } from '../../lib/exportUtils'
 import { cn } from '../../lib/utils'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 const COLUMNS = ['Yarn Type', 'Colour', 'Current', 'Reserved', 'Available', 'Reorder Level', 'Unit', 'Status']
 
 function buildRows(stock) {
   return stock.map(y => [
-    y.type, y.colour, y.current, y.reserved, y.current - y.reserved, y.reorder, y.unit, y.status,
+    y.type, y.color, y.current, y.reserved, y.current - y.reserved, y.reorder, y.unit, y.status,
   ])
 }
 
@@ -33,11 +36,15 @@ function StockBar({ current, reserved, reorder }) {
 export default function StockPage() {
   const { user } = useAuth()
   const [search, setSearch] = useState('')
-  const filtered = mockYarnStock.filter(y =>
+  
+  const { data: stockData, isLoading, error } = useStock()
+  const allStock = stockData?.data || []
+  
+  const filtered = allStock.filter(y =>
     y.type.toLowerCase().includes(search.toLowerCase()) ||
-    y.colour.toLowerCase().includes(search.toLowerCase())
+    y.color.toLowerCase().includes(search.toLowerCase())
   )
-  const lowCount = mockYarnStock.filter(y => y.status !== 'OK').length
+  const lowCount = allStock.filter(y => y.status !== 'OK').length
 
   const handleExportPDF = () => exportPDF({
     title: 'Stock Levels', subtitle: 'Current, reserved and available yarn inventory',
@@ -47,6 +54,9 @@ export default function StockPage() {
     filename: 'YarnStock', sheetName: 'Stock', columns: COLUMNS, rows: buildRows(filtered),
   })
 
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
+
   return (
     <div className="page-root">
       <PageHeader
@@ -55,7 +65,7 @@ export default function StockPage() {
         actions={
           <div className="flex gap-2">
             <ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
-            <button className="btn-primary btn-sm"><Plus size={14} />Add GRN</button>
+            <Link to="/inventory/gate-entries" className="btn-primary btn-sm"><Plus size={14} />Add GRN</Link>
           </div>
         }
       />
@@ -91,7 +101,7 @@ export default function StockPage() {
               return (
                 <tr key={y.id}>
                   <td className="font-semibold text-zinc-200">{y.type}</td>
-                  <td className="text-zinc-400">{y.colour}</td>
+                  <td className="text-zinc-400">{y.color}</td>
                   <td className="font-mono text-xs text-zinc-300">{y.current.toLocaleString()} {y.unit}</td>
                   <td className="font-mono text-xs text-amber-400">{y.reserved.toLocaleString()}</td>
                   <td className={cn('font-mono text-xs font-bold', available <= 0 ? 'text-red-400' : available < y.reorder ? 'text-amber-400' : 'text-emerald-400')}>

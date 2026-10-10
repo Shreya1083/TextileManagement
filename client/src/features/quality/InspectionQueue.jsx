@@ -3,11 +3,11 @@ import { Eye, ScanLine, CheckCircle, RotateCcw, XCircle } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { Badge }      from '../../components/ui/Badge'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 import { useAuth }    from '../../context/AuthContext'
-import { mockRolls }  from '../../mocks/data'
+import { useRolls, useInspectRoll, useSettings }  from '../../hooks/useAPI'
 import { formatDate, cn } from '../../lib/utils'
-
-const DEFECTS = ['Colour Mismatch','Uneven Weave','Stain','Hole','Other']
 
 export default function InspectionQueue() {
   const { user } = useAuth()
@@ -17,8 +17,16 @@ export default function InspectionQueue() {
   const [remarks, setRemarks]   = useState('')
   const [reason, setReason]     = useState('')
 
-  const queue = mockRolls.filter(r => r.status === 'AWAITING_QC')
-  const done  = mockRolls.filter(r => r.status !== 'AWAITING_QC')
+  const { data: rollsData, isLoading, error } = useRolls()
+  const { data: settingsData } = useSettings()
+  
+  const DEFECTS = settingsData?.data?.defects || ['Colour Mismatch','Uneven Weave','Stain','Hole','Other']
+
+  const inspectMutation = useInspectRoll()
+  const allRolls = rollsData?.data || []
+  
+  const queue = allRolls.filter(r => r.status === 'AWAITING_QC')
+  const done  = allRolls.filter(r => r.status !== 'AWAITING_QC')
 
   const toggleDefect = d => setDefects(p => p.includes(d) ? p.filter(x => x !== d) : [...p, d])
 
@@ -27,6 +35,9 @@ export default function InspectionQueue() {
     REWORK:   { bg: 'bg-amber-500/15 border-amber-500/40 text-amber-300',       icon: RotateCcw,  active: 'bg-amber-600 text-white border-amber-600'     },
     REJECTED: { bg: 'bg-red-500/15 border-red-500/40 text-red-300',             icon: XCircle,    active: 'bg-red-600 text-white border-red-600'          },
   }
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">
@@ -48,11 +59,11 @@ export default function InspectionQueue() {
           <tbody>
             {queue.map(r => (
               <tr key={r.id}>
-                <td className="font-mono text-xs text-primary-400 font-semibold">{r.id}</td>
-                <td className="font-mono text-xs text-zinc-400">{r.order}</td>
-                <td className="font-mono text-xs text-zinc-600">{r.machine}</td>
+                <td className="font-mono text-xs text-primary-400 font-semibold">{r.rollNumber}</td>
+                <td className="font-mono text-xs text-zinc-400">{r.order?.orderNumber || '—'}</td>
+                <td className="font-mono text-xs text-zinc-600">{r.machine?.machineId || '—'}</td>
                 <td className="font-semibold text-zinc-200">{r.length} m</td>
-                <td className="text-zinc-400 text-xs">{formatDate(r.produced)}</td>
+                <td className="text-zinc-400 text-xs">{formatDate(r.producedAt)}</td>
                 <td><Badge status={r.status} /></td>
                 <td>
                   <button
@@ -77,11 +88,11 @@ export default function InspectionQueue() {
           <tbody>
             {done.map(r => (
               <tr key={r.id}>
-                <td className="font-mono text-xs text-primary-400 font-semibold">{r.id}</td>
-                <td className="font-mono text-xs text-zinc-400">{r.order}</td>
+                <td className="font-mono text-xs text-primary-400 font-semibold">{r.rollNumber}</td>
+                <td className="font-mono text-xs text-zinc-400">{r.order?.orderNumber || '—'}</td>
                 <td className="text-zinc-300">{r.length} m</td>
                 <td className="text-zinc-400">{r.inspector ?? '—'}</td>
-                <td className="text-zinc-500 text-xs">{formatDate(r.produced)}</td>
+                <td className="text-zinc-500 text-xs">{formatDate(r.producedAt)}</td>
                 <td><Badge status={r.status} /></td>
               </tr>
             ))}
@@ -89,11 +100,11 @@ export default function InspectionQueue() {
         </table>
       </div>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={`Inspect Roll`} description={selected?.id} size="lg">
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={`Inspect Roll`} description={selected?.rollNumber} size="lg">
         {selected && (
           <div className="space-y-5">
             <div className="grid grid-cols-3 gap-2.5 text-xs">
-              {[['Order',selected.order],['Machine',selected.machine],['Length',`${selected.length} m`],['Produced',formatDate(selected.produced)]].map(([k,v]) => (
+              {[['Order',selected.order?.orderNumber || '—'],['Machine',selected.machine?.machineId || '—'],['Length',`${selected.length} m`],['Produced',formatDate(selected.producedAt)]].map(([k,v]) => (
                 <div key={k} className="bg-zinc-800/60 rounded-xl p-3">
                   <p className="text-zinc-600 mb-0.5">{k}</p>
                   <p className="font-semibold text-zinc-100">{v}</p>
@@ -149,7 +160,23 @@ export default function InspectionQueue() {
               <button className={cn(
                 'btn btn-sm px-5',
                 result === 'PASSED' ? 'btn-success' : result === 'REWORK' ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'btn-danger',
-              )}>
+              )}
+                disabled={inspectMutation.isPending}
+                onClick={async () => {
+                  try {
+                    await inspectMutation.mutateAsync({
+                      id: selected.id,
+                      data: { 
+                        status: result, 
+                        defects: defects.join(','), 
+                        remarks: remarks || reason, 
+                        inspector: user?.name 
+                      }
+                    });
+                    setSelected(null);
+                  } catch(e) { console.error(e) }
+                }}
+              >
                 Submit: {result}
               </button>
             </div>

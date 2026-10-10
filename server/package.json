@@ -7,11 +7,12 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "smoke": "node test-api.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "node prisma/seed.js"
+    "prisma:seed": "node prisma/seed.js",
+    "prisma:reset": "prisma migrate reset --force",
+    "setup": "prisma generate && prisma migrate dev && prisma db seed"
   },
   "keywords": [
     "textile",

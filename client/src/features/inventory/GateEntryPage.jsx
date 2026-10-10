@@ -4,14 +4,26 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { formatDate } from '../../lib/utils'
 
-const mockGRNs = [
-  { id:'GRN-2026-042', supplier:'Agarwal Yarns Pvt Ltd', yarn:'Cotton 40s',  colour:'White',   qty:500,  bags:10, challan:'CH-8821', vehicle:'GJ05AB1234', date:'2026-10-08' },
-  { id:'GRN-2026-041', supplier:'Krishna Fibers',         yarn:'Poly 150D',   colour:'Natural', qty:800,  bags:16, challan:'CH-7734', vehicle:'MH02CD5678', date:'2026-10-06' },
-  { id:'GRN-2026-040', supplier:'Rajasthan Denim Supply', yarn:'Denim 7oz',   colour:'Indigo',  qty:2100, bags:21, challan:'CH-5529', vehicle:'RJ14EF9012', date:'2026-10-03' },
-]
+
+
+import { useGateEntries, useCreateGateEntry, useSuppliers } from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 export default function GateEntryPage() {
   const [showAdd, setShowAdd] = useState(false)
+  
+  const { data: grnData, isLoading, error } = useGateEntries()
+  const grns = grnData?.data || []
+
+  const { data: suppliersData } = useSuppliers()
+  const suppliers = suppliersData?.data || []
+
+  const createGateEntryMutation = useCreateGateEntry()
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
+
   return (
     <div className="page-root">
       <PageHeader title="Gate Entry / GRN" subtitle="Goods Receipt Notes — yarn and material inward"
@@ -22,13 +34,13 @@ export default function GateEntryPage() {
         <table className="table-base">
           <thead><tr><th>GRN ID</th><th>Supplier</th><th>Yarn Type</th><th>Colour</th><th>Qty</th><th>Bags</th><th>Challan</th><th>Vehicle</th><th>Date</th></tr></thead>
           <tbody>
-            {mockGRNs.map(g => (
+            {grns.map(g => (
               <tr key={g.id}>
-                <td className="font-mono text-xs text-primary-400 font-semibold">{g.id}</td>
+                <td className="font-mono text-xs text-primary-400 font-semibold">{g.grnId}</td>
                 <td className="font-semibold text-zinc-200">{g.supplier}</td>
                 <td>{g.yarn}</td>
                 <td className="text-zinc-400">{g.colour}</td>
-                <td className="font-bold text-emerald-400">+{g.qty.toLocaleString()}</td>
+                <td className="font-bold text-emerald-400">+{g.qty?.toLocaleString()}</td>
                 <td className="text-zinc-300">{g.bags}</td>
                 <td className="font-mono text-xs text-zinc-400">{g.challan}</td>
                 <td className="font-mono text-xs text-zinc-400">{g.vehicle}</td>
@@ -39,21 +51,49 @@ export default function GateEntryPage() {
         </table>
       </div>
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="New Gate Entry / GRN" size="lg">
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="label">Supplier</label><select className="input"><option>Agarwal Yarns Pvt Ltd</option><option>Krishna Fibers</option></select></div>
-          <div><label className="label">Yarn Type</label><select className="input"><option>Cotton 40s</option><option>Poly 150D</option></select></div>
-          <div><label className="label">Colour</label><input className="input" /></div>
-          <div><label className="label">Lot / Batch</label><input className="input" /></div>
-          <div><label className="label">Quantity (kg)</label><input className="input" type="number" /></div>
-          <div><label className="label">Bags / Cones</label><input className="input" type="number" /></div>
-          <div><label className="label">Challan Number</label><input className="input" /></div>
-          <div><label className="label">Vehicle Number</label><input className="input" /></div>
-          <div className="col-span-2"><label className="label">Notes</label><textarea className="input" rows={2} /></div>
-        </div>
-        <div className="flex justify-end gap-2 pt-4">
-          <button className="btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
-          <button className="btn-primary"><Package size={14} />Save GRN</button>
-        </div>
+        <form onSubmit={async (e) => {
+          e.preventDefault()
+          const fd = new FormData(e.target)
+          const data = Object.fromEntries(fd.entries())
+          try {
+            await createGateEntryMutation.mutateAsync({
+              grnId: `GRN-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+              supplier: data.supplier,
+              yarn: data.yarn,
+              colour: data.colour,
+              lotBatch: data.lotBatch,
+              qty: Number(data.qty),
+              bags: Number(data.bags),
+              challan: data.challan,
+              vehicle: data.vehicle,
+              notes: data.notes,
+            })
+            setShowAdd(false)
+          } catch (err) {
+            console.error('Failed to create Gate Entry', err)
+          }
+        }}>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="label">Supplier</label>
+              <select name="supplier" className="input" required>
+                <option value="">Select Supplier...</option>
+                {suppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+              </select>
+            </div>
+            <div><label className="label">Yarn Type</label><input name="yarn" className="input" required /></div>
+            <div><label className="label">Colour</label><input name="colour" className="input" required /></div>
+            <div><label className="label">Lot / Batch</label><input name="lotBatch" className="input" /></div>
+            <div><label className="label">Quantity (kg)</label><input name="qty" className="input" type="number" required /></div>
+            <div><label className="label">Bags / Cones</label><input name="bags" className="input" type="number" required /></div>
+            <div><label className="label">Challan Number</label><input name="challan" className="input" required /></div>
+            <div><label className="label">Vehicle Number</label><input name="vehicle" className="input" required /></div>
+            <div className="col-span-2"><label className="label">Notes</label><textarea name="notes" className="input" rows={2} /></div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <button type="button" className="btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
+            <button type="submit" className="btn-primary" disabled={createGateEntryMutation.isPending}><Package size={14} />Save GRN</button>
+          </div>
+        </form>
       </Modal>
     </div>
   )

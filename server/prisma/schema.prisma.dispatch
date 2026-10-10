@@ -1,0 +1,33 @@
+
+model Dispatch {
+  id         String   @id @default(cuid())
+  dispatchId String   @unique @default(cuid())
+  buyer      String
+  order      String
+  rolls      Int
+  metres     Float
+  vehicle    String
+  driver     String?
+  date       DateTime @default(now())
+  status     String   // IN_TRANSIT, DELIVERED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("dispatches")
+}
+
+model Invoice {
+  id         String   @id @default(cuid())
+  invoiceId  String   @unique @default(cuid())
+  buyer      String
+  dispatch   String
+  amount     Float
+  paid       Float    @default(0)
+  balance    Float
+  date       DateTime @default(now())
+  status     String   // PAID, UNPAID, PARTIAL
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("invoices")
+}

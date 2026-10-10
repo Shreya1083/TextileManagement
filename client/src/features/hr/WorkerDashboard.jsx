@@ -13,10 +13,16 @@ import { Modal }       from '../../components/ui/Modal'
 import { useAuth }     from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
 import { formatCurrencyFull, cn } from '../../lib/utils'
-import {
-  mockWorkerProfiles, ATTENDANCE_LABELS,
-  mockDeptAttendanceSummary, mockWageTrend,
-} from '../../mocks/data'
+import { useWorkerProfiles, useAttendanceSummary, useWageTrend } from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
+
+const ATTENDANCE_LABELS = {
+  P: { label: 'Present', color: 'bg-emerald-500', border: 'border-emerald-500/20 text-emerald-400 bg-emerald-500/10' },
+  A: { label: 'Absent',  color: 'bg-red-500',     border: 'border-red-500/20 text-red-400 bg-red-500/10' },
+  H: { label: 'Half Day',color: 'bg-amber-500',   border: 'border-amber-500/20 text-amber-400 bg-amber-500/10' },
+  S: { label: 'Sunday',  color: 'bg-zinc-700',    border: 'border-zinc-700/50 text-zinc-500' },
+}
 
 /* ─── constants ──────────────────────────────────────────────────────────── */
 const MONTH_LABEL = 'October 2026'
@@ -280,8 +286,17 @@ export default function WorkerDashboard() {
   const [selected, setSelected]     = useState(null)
   const [modalOpen, setModalOpen]   = useState(false)
 
-  const depts   = ['ALL', ...new Set(mockWorkerProfiles.map(w => w.dept))]
-  const filtered = mockWorkerProfiles.filter(w => {
+  const { data: profilesData, isLoading: profilesLoading, error: profilesError } = useWorkerProfiles()
+  const profiles = profilesData?.data || []
+
+  const { data: deptData } = useAttendanceSummary()
+  const deptAttendanceSummary = deptData?.data || []
+
+  const { data: wageData } = useWageTrend()
+  const wageTrend = wageData?.data || []
+
+  const depts   = ['ALL', ...new Set(profiles.map(w => w.dept))]
+  const filtered = profiles.filter(w => {
     const matchDept   = deptFilter === 'ALL' || w.dept === deptFilter
     const matchSearch = w.name.toLowerCase().includes(search.toLowerCase()) ||
                         w.role.toLowerCase().includes(search.toLowerCase()) ||
@@ -290,11 +305,11 @@ export default function WorkerDashboard() {
   })
 
   // Dept-wide stats
-  const totalWorkers  = mockWorkerProfiles.length
-  const totalPresent  = mockWorkerProfiles.filter(w => w.todayStatus === 'PRESENT').length
-  const totalAbsent   = mockWorkerProfiles.filter(w => w.todayStatus === 'ABSENT').length
-  const totalWagesMon = mockWorkerProfiles.reduce((s, w) => s + Object.values(w.monthlyWage)[0], 0)
-  const avgAttendance = (mockWorkerProfiles.reduce((s, w) => s + w.daysPresent, 0) / totalWorkers).toFixed(1)
+  const totalWorkers  = profiles.length
+  const totalPresent  = profiles.filter(w => w.todayStatus === 'PRESENT').length
+  const totalAbsent   = profiles.filter(w => w.todayStatus === 'ABSENT').length
+  const totalWagesMon = profiles.reduce((s, w) => s + (w.monthlyWage ? Object.values(w.monthlyWage)[0] : 0), 0)
+  const avgAttendance = totalWorkers ? (profiles.reduce((s, w) => s + (w.daysPresent || 0), 0) / totalWorkers).toFixed(1) : 0
 
   const openWorker = (w) => { setSelected(w); setModalOpen(true) }
 
@@ -334,7 +349,7 @@ export default function WorkerDashboard() {
             <div className="flex flex-col gap-0.5">
               <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Absent Today</p>
               <p className="text-2xl font-bold text-red-400">{totalAbsent}</p>
-              <p className="text-2xs text-zinc-600">{((totalAbsent/totalWorkers)*100).toFixed(0)}% of workforce</p>
+              <p className="text-2xs text-zinc-600">{totalWorkers ? ((totalAbsent/totalWorkers)*100).toFixed(0) : 0}% of workforce</p>
             </div>
             <div className="flex flex-col gap-0.5">
               <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Avg Days (Oct)</p>
@@ -349,7 +364,7 @@ export default function WorkerDashboard() {
             <div className="flex flex-col gap-0.5">
               <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">On Overtime</p>
               <p className="text-2xl font-bold text-primary-400">
-                {mockWorkerProfiles.filter(w => w.overtimeHrs > 0).length}
+                {profiles.filter(w => w.overtimeHrs > 0).length}
               </p>
               <p className="text-2xs text-zinc-600">workers this month</p>
             </div>
@@ -370,7 +385,7 @@ export default function WorkerDashboard() {
           </div>
           <div className="p-5">
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={mockDeptAttendanceSummary} margin={{ top:4, right:4, left:-16, bottom:0 }} barGap={4}>
+              <BarChart data={deptAttendanceSummary} margin={{ top:4, right:4, left:-16, bottom:0 }} barGap={4}>
                 <CartesianGrid stroke="#27272a" strokeDasharray="4 4" vertical={false} />
                 <XAxis dataKey="month" tick={{ fill:'#52525b', fontSize:10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill:'#52525b', fontSize:10 }} axisLine={false} tickLine={false} />
@@ -393,7 +408,7 @@ export default function WorkerDashboard() {
           </div>
           <div className="p-5">
             <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={mockWageTrend} margin={{ top:4, right:4, left:-10, bottom:0 }}>
+              <AreaChart data={wageTrend} margin={{ top:4, right:4, left:-10, bottom:0 }}>
                 <defs>
                   <linearGradient id="gWage" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%"   stopColor="#6366f1" stopOpacity={0.25} />
@@ -424,7 +439,7 @@ export default function WorkerDashboard() {
           Today's Attendance — {new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
-          {mockWorkerProfiles.map(w => {
+          {profiles.map(w => {
             const isPresent = w.todayStatus === 'PRESENT'
             const isAbsent  = w.todayStatus === 'ABSENT'
             return (

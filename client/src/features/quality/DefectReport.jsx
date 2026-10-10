@@ -1,23 +1,54 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts'
 import { PageHeader }     from '../../components/ui/PageHeader'
 import { ExportMenu }     from '../../components/ui/ExportMenu'
-import { mockDefectReport, mockQualityData } from '../../mocks/data'
 import { exportPDF, exportExcel } from '../../lib/exportUtils'
+import { useRolls } from '../../hooks/useAPI'
 
 const COLORS = ['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#64748b']
 const COLUMNS = ['Defect Type', 'Count', 'Share %']
 
 export default function DefectReport() {
+  const { data: rollsData } = useRolls()
+  const rolls = rollsData?.data || []
+  
+  const defectCounts = {}
+  let totalDefects = 0
+  rolls.forEach(r => {
+    if (r.defects) {
+      const defs = r.defects.split(',').map(d => d.trim()).filter(Boolean)
+      defs.forEach(d => {
+        defectCounts[d] = (defectCounts[d] || 0) + 1
+        totalDefects++
+      })
+    }
+  })
+
+  const defectReport = Object.entries(defectCounts).map(([type, count]) => ({
+    type,
+    count,
+    pct: totalDefects ? Math.round((count / totalDefects) * 100) : 0
+  })).sort((a,b) => b.count - a.count)
+
+  const passedRolls = rolls.filter(r => r.status === 'PASSED').length
+  const rejectedRolls = rolls.filter(r => r.status === 'REJECTED').length
+  const reworkRolls = rolls.filter(r => r.status === 'REWORK').length
+  
+  const qualityData = [
+    { name: 'Passed Rolls', value: passedRolls, color: '#10b981' },
+    { name: 'Rework Rolls', value: reworkRolls, color: '#f59e0b' },
+    { name: 'Rejected Rolls', value: rejectedRolls, color: '#ef4444' },
+  ]
+
   const handleExportPDF = () => exportPDF({
     title: 'Defect Report', subtitle: 'Quality defect analysis by type',
     columns: COLUMNS,
-    rows: mockDefectReport.map(d => [d.type, d.count, `${d.pct}%`]),
+    rows: defectReport.map(d => [d.type, d.count, `${d.pct}%`]),
     filename: 'DefectReport',
   })
   const handleExportExcel = () => exportExcel({
     filename: 'DefectReport', sheetName: 'Defects',
     columns: COLUMNS,
-    rows: mockDefectReport.map(d => [d.type, d.count, d.pct]),
+    rows: defectReport.map(d => [d.type, d.count, d.pct]),
   })
   return (
     <div className="page-root">
@@ -25,7 +56,7 @@ export default function DefectReport() {
         actions={<ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />}
       />
       <div className="grid grid-cols-3 gap-4">
-        {mockQualityData.map(d => (
+        {qualityData.map(d => (
           <div key={d.name} className="card p-5 flex items-center gap-4">
             <div className="w-3 h-14 rounded-full shrink-0" style={{ background: d.color }} />
             <div>
@@ -40,13 +71,13 @@ export default function DefectReport() {
           <div className="section-header"><p className="section-title">Defects by Type — This Month</p></div>
           <div className="p-5">
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={mockDefectReport} layout="vertical" margin={{ top:0, right:8, left:80, bottom:0 }}>
+              <BarChart data={defectReport} layout="vertical" margin={{ top:0, right:8, left:80, bottom:0 }}>
                 <CartesianGrid stroke="#27272a" strokeDasharray="4 4" horizontal={false} />
                 <XAxis type="number" tick={{ fill:'#52525b', fontSize:10 }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="type" type="category" tick={{ fill:'#a1a1aa', fontSize:11 }} axisLine={false} tickLine={false} width={90} />
                 <Tooltip contentStyle={{ background:'#18181b', border:'1px solid #27272a', borderRadius:12, fontSize:11 }} />
                 <Bar dataKey="count" name="Count" radius={[0,6,6,0]}>
-                  {mockDefectReport.map((_,i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {defectReport.map((_,i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -58,7 +89,7 @@ export default function DefectReport() {
             <table className="table-base">
               <thead><tr><th>Defect Type</th><th>Count</th><th>Share</th></tr></thead>
               <tbody>
-                {mockDefectReport.map((d,i) => (
+                {defectReport.map((d,i) => (
                   <tr key={d.type}>
                     <td><div className="flex items-center gap-2.5"><span className="w-2.5 h-2.5 rounded-full" style={{background:COLORS[i%COLORS.length]}} />{d.type}</div></td>
                     <td className="font-bold">{d.count}</td>

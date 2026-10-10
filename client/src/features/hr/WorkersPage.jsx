@@ -7,8 +7,10 @@ import {
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { Badge }      from '../../components/ui/Badge'
-import { mockWorkers } from '../../mocks/data'
+import { useWorkers, useCreateWorker } from '../../hooks/useAPI'
 import { formatCurrencyFull, cn } from '../../lib/utils'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 const DEPT_COLORS = {
@@ -48,8 +50,8 @@ function CopyButton({ value }) {
 }
 
 /* ── Registration form ──────────────────────────────────────────────── */
-function WorkerRegisterModal({ open, onClose, onSave }) {
-  const nextId   = genWorkerId('', mockWorkers)
+function WorkerRegisterModal({ open, onClose, onSave, workers = [] }) {
+  const nextId   = genWorkerId('', workers)
   const [step, setStep]         = useState(1) // 1 = details, 2 = credentials
   const [showPw, setShowPw]     = useState(false)
   const [rfidScanning, setRfidScanning] = useState(false)
@@ -391,28 +393,39 @@ function WorkerRegisterModal({ open, onClose, onSave }) {
 export default function WorkersPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [search,  setSearch]  = useState('')
-  const [workers, setWorkers] = useState(mockWorkers)
+  
+  const { data: workersData, isLoading, error } = useWorkers()
+  const workers = workersData?.data || []
+  
+  const createWorkerMutation = useCreateWorker()
 
-  const handleSave = (form) => {
-    const newWorker = {
-      id:      form.workerId,
-      name:    form.fullName,
-      role:    form.role,
-      dept:    form.dept,
-      wage:    Number(form.dailyWage),
-      basis:   form.wageBasis,
-      present: 0,
-      month:   new Date().toLocaleString('default', { month: 'short' }),
-      net:     0,
+  const handleSave = async (form) => {
+    try {
+      await createWorkerMutation.mutateAsync({
+        name: form.fullName,
+        role: form.role,
+        dept: form.dept,
+        shift: form.shift,
+        basis: form.wageBasis,
+        wage: Number(form.dailyWage),
+        contact: form.phone,
+        rfidUid: form.rfidUid,
+        machineId: form.machineId || null,
+        workerId: form.workerId,
+      })
+    } catch (err) {
+      console.error('Failed to create worker', err)
     }
-    setWorkers(p => [...p, newWorker])
   }
 
   const filtered = workers.filter(w =>
-    w.name.toLowerCase().includes(search.toLowerCase()) ||
-    w.role.toLowerCase().includes(search.toLowerCase()) ||
-    w.dept.toLowerCase().includes(search.toLowerCase())
+    w.name?.toLowerCase().includes(search.toLowerCase()) ||
+    w.role?.toLowerCase().includes(search.toLowerCase()) ||
+    w.dept?.toLowerCase().includes(search.toLowerCase())
   )
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">
@@ -438,13 +451,13 @@ export default function WorkersPage() {
           <div key={w.id} className="card-hover p-5 cursor-pointer group">
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${DEPT_COLORS[w.dept] || 'from-zinc-600 to-zinc-700'} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
-                {w.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                {w.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-zinc-100 text-sm truncate">{w.name}</p>
                 <p className="text-xs text-zinc-500 truncate">{w.role}</p>
               </div>
-              <span className="font-mono text-2xs text-zinc-700 group-hover:text-zinc-500 transition-colors">{w.id}</span>
+              <span className="font-mono text-2xs text-zinc-700 group-hover:text-zinc-500 transition-colors">{w.workerId || w.id}</span>
             </div>
 
             <div className="space-y-2 text-xs border-t border-zinc-800/60 pt-3">
@@ -456,13 +469,9 @@ export default function WorkersPage() {
                 <span className="text-zinc-600">Daily Wage</span>
                 <span className="text-zinc-300 font-mono">₹{w.wage}/day</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-600">Days ({w.month})</span>
-                <span className="text-emerald-400 font-bold">{w.present}</span>
-              </div>
               <div className="flex justify-between items-center pt-1.5 border-t border-zinc-800/60">
                 <span className="text-zinc-500 font-semibold">Net Pay</span>
-                <span className="font-bold text-zinc-100">{formatCurrencyFull(w.net)}</span>
+                <span className="font-bold text-zinc-100">{formatCurrencyFull(w.net || 0)}</span>
               </div>
             </div>
 
@@ -479,7 +488,9 @@ export default function WorkersPage() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         onSave={handleSave}
+        workers={workers}
       />
     </div>
   )
 }
+

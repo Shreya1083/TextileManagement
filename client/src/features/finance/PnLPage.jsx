@@ -1,9 +1,11 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { PageHeader }         from '../../components/ui/PageHeader'
 import { ExportMenu }         from '../../components/ui/ExportMenu'
-import { mockRevenueData }    from '../../mocks/data'
 import { formatCurrencyFull } from '../../lib/utils'
 import { exportPDF, exportExcel } from '../../lib/exportUtils'
+import { usePnL } from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -19,19 +21,24 @@ const ChartTip = ({ active, payload, label }) => {
   )
 }
 
-const PNL_COLUMNS = ['Month', 'Revenue (₹)', 'Cost (₹)', 'Gross Profit (₹)', 'Margin %']
+const PNL_COLUMNS = ['Month', 'Revenue (₹)', 'Material Cost (₹)', 'Labor Cost (₹)', 'Overhead (₹)', 'Total Cost (₹)', 'Net Profit (₹)', 'Margin %']
 
 export default function PnLPage() {
-  const data = mockRevenueData.map(d => ({ ...d, profit: d.revenue - d.cost }))
-  const last = data[data.length - 1]
-  const marginPct = ((last.profit / last.revenue) * 100).toFixed(1)
+  const { data: pnlData, isLoading, error } = usePnL('2026-04-01', '2026-09-30')
+  const data = pnlData?.data || []
+  
+  const last = data.length > 0 ? data[data.length - 1] : { profit: 0, revenue: 0, cost: 0 }
+  const marginPct = last.revenue > 0 ? ((last.profit / last.revenue) * 100).toFixed(1) : 0
 
   const buildRows = () => data.map(d => [
     `${d.month} 2026`,
     d.revenue,
+    d.materialCost,
+    d.laborCost,
+    d.overheadCost,
     d.cost,
     d.profit,
-    `${((d.profit / d.revenue) * 100).toFixed(1)}%`,
+    d.revenue > 0 ? `${((d.profit / d.revenue) * 100).toFixed(1)}%` : '0%'
   ])
 
   const handleExportPDF = () => exportPDF({
@@ -41,6 +48,9 @@ export default function PnLPage() {
   const handleExportExcel = () => exportExcel({
     filename: 'PnL_Report', sheetName: 'P&L', columns: PNL_COLUMNS, rows: buildRows(),
   })
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">
@@ -94,15 +104,18 @@ export default function PnLPage() {
       <div className="table-wrap">
         <div className="table-head"><p className="section-title">Monthly Breakdown</p></div>
         <table className="table-base">
-          <thead><tr><th>Month</th><th>Revenue</th><th>Cost</th><th>Gross Profit</th><th>Margin</th></tr></thead>
+          <thead><tr><th>Month</th><th>Revenue</th><th>Material Cost</th><th>Labor Cost</th><th>Overhead</th><th>Total Cost</th><th>Net Profit</th><th>Margin</th></tr></thead>
           <tbody>
             {data.map(d => (
               <tr key={d.month}>
                 <td className="font-semibold text-zinc-200">{d.month} 2026</td>
                 <td className="text-blue-400 font-mono">{formatCurrencyFull(d.revenue)}</td>
+                <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.materialCost)}</td>
+                <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.laborCost)}</td>
+                <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.overheadCost)}</td>
                 <td className="text-red-400 font-mono">{formatCurrencyFull(d.cost)}</td>
                 <td className="text-emerald-400 font-bold font-mono">{formatCurrencyFull(d.profit)}</td>
-                <td><span className="badge badge-green">{((d.profit/d.revenue)*100).toFixed(1)}%</span></td>
+                <td><span className="badge badge-green">{d.revenue > 0 ? ((d.profit/d.revenue)*100).toFixed(1) : 0}%</span></td>
               </tr>
             ))}
           </tbody>

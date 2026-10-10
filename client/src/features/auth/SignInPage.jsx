@@ -6,16 +6,11 @@ import { ROLE_HOME } from '../../context/AuthContext'
 import { Eye, EyeOff, Loader2, ArrowRight, Layers } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
-// TODO (backend): This page uses client-side demo authentication only.
-// Before production: remove the demo credentials hint block, connect onSubmit to
-// a real API endpoint (e.g. POST /api/auth/login), and verify credentials server-side.
-// The backend must validate email, password, and assigned role before issuing a session token.
-
 const FEATURES = [
-  { icon: '🧵', title: 'End-to-End Traceability',  desc: 'Track every yarn lot to finished fabric roll and dispatch' },
-  { icon: '⚙️', title: 'Live Machine Monitoring',  desc: 'Real-time status for every machine on the production floor' },
-  { icon: '🔍', title: 'Smart Quality Control',    desc: 'QR-based roll inspection with full defect analytics' },
-  { icon: '📊', title: 'Owner Analytics',          desc: 'Revenue, P&L and order profitability in one dashboard' },
+  { icon: '🧵', title: 'Complete Traceability',  desc: 'Track materials from entry to dispatch' },
+  { icon: '⚙️', title: 'Production Monitoring',  desc: 'Real-time machine status tracking' },
+  { icon: '🔍', title: 'Quality Control',    desc: 'Systematic inspection workflow' },
+  { icon: '📊', title: 'Business Analytics',          desc: 'Comprehensive reporting dashboard' },
 ]
 
 export default function SignInPage() {
@@ -35,9 +30,11 @@ export default function SignInPage() {
   const onSubmit = async ({ email, password, role }) => {
     setAuthError('')
     setLoading(true)
-    await new Promise(r => setTimeout(r, 600))
-    const res = login(email, password)
+    
+    // Call async login
+    const res = await login(email, password)
     setLoading(false)
+    
     if (res.ok) {
       // Cross-check: the submitted role must match the role assigned to this account.
       // This prevents a user from entering owner credentials while selecting a different role.
@@ -67,8 +64,8 @@ export default function SignInPage() {
             <Layers size={20} className="text-white" />
           </div>
           <div>
-            <p className="font-bold text-zinc-50 text-base leading-tight">Everest Textile Mills</p>
-            <p className="text-2xs text-zinc-500 leading-tight uppercase tracking-widest">ERP Platform</p>
+            <p className="font-bold text-zinc-50 text-base leading-tight">Textile ERP</p>
+            <p className="text-2xs text-zinc-500 leading-tight uppercase tracking-widest">Management System</p>
           </div>
         </div>
 
@@ -76,16 +73,16 @@ export default function SignInPage() {
         <div className="relative">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-500/15 border border-primary-500/25 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-primary-400 animate-pulse" />
-            <span className="text-xs font-semibold text-primary-300 uppercase tracking-wider">Smart Manufacturing ERP</span>
+            <span className="text-xs font-semibold text-primary-300 uppercase tracking-wider">Manufacturing ERP</span>
           </div>
           <h1 className="text-4xl xl:text-5xl font-bold text-zinc-50 leading-[1.1] tracking-tight mb-4">
-            One platform for<br />
-            <span className="text-gradient-primary">every thread</span><br />
-            of your factory.
+            Streamline your<br />
+            <span className="text-gradient-primary">textile operations</span><br />
+            with ease.
           </h1>
           <p className="text-zinc-400 text-base leading-relaxed max-w-md">
-            From raw yarn at the gate to invoiced dispatch — complete traceability,
-            real-time production visibility and smart workforce management.
+            Complete manufacturing management - from inventory to production,
+            quality control to dispatch.
           </p>
           <div className="grid grid-cols-2 gap-3 mt-8">
             {FEATURES.map(f => (
@@ -101,9 +98,9 @@ export default function SignInPage() {
         {/* Bottom stats */}
         <div className="relative flex items-center gap-8">
           {[
-            { value: '12,400+', label: 'Rolls tracked' },
-            { value: '94.2%',   label: 'Machine uptime' },
-            { value: '₹18.4L',  label: 'Sep revenue' },
+            { value: '24/7', label: 'Support' },
+            { value: 'Secure', label: 'Data protection' },
+            { value: 'Fast', label: 'Performance' },
           ].map(s => (
             <div key={s.label}>
               <p className="text-xl font-bold text-zinc-50">{s.value}</p>
@@ -122,7 +119,7 @@ export default function SignInPage() {
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-violet-600 shadow-glow flex items-center justify-center">
               <Layers size={16} className="text-white" />
             </div>
-            <p className="font-bold text-zinc-100">Everest Textile ERP</p>
+            <p className="font-bold text-zinc-100">Textile ERP</p>
           </div>
 
           {/* Header */}
@@ -205,6 +202,7 @@ export default function SignInPage() {
                 <option value="inspector">Quality Inspector</option>
                 <option value="accounts">Office / Accounts</option>
                 <option value="buyer">Buyer</option>
+                <option value="worker">Floor Worker</option>
               </select>
               {errors.role && (
                 <p className="text-xs text-red-400 mt-1">{errors.role.message}</p>
@@ -233,26 +231,25 @@ export default function SignInPage() {
             </button>
           </form>
 
-          {/* Demo credentials hint — only shown in development builds, excluded from production */}
+          {/* Demo credentials - removed in production */}
           {import.meta.env.DEV && (
           <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/80 rounded-2xl">
-            <p className="text-2xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Demo Credentials</p>
+            <p className="text-2xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Demo Access</p>
             <p className="text-xs text-zinc-500 mb-2">
-              Use any email below with password{' '}
-              <code className="text-primary-400 font-mono">demo123</code>
+              Password: <code className="text-primary-400 font-mono">Admin@123</code>
             </p>
             <div className="space-y-1">
               {[
-                { email: 'owner@everest.com',      role: 'Owner / Admin' },
-                { email: 'store@everest.com',       role: 'Store Keeper' },
-                { email: 'supervisor@everest.com',  role: 'Production Supervisor' },
-                { email: 'inspector@everest.com',   role: 'Quality Inspector' },
-                { email: 'accounts@everest.com',    role: 'Office / Accounts' },
-                { email: 'buyer@everest.com',       role: 'Buyer' },
-              ].map(({ email, role }) => (
-                <div key={email} className="flex items-center justify-between gap-2">
-                  <code className="text-2xs text-zinc-600 font-mono">{email}</code>
-                  <span className="text-2xs text-zinc-700 shrink-0">{role}</span>
+                { role: 'Owner / Admin' },
+                { role: 'Store Keeper' },
+                { role: 'Production Supervisor' },
+                { role: 'Quality Inspector' },
+                { role: 'Office / Accounts' },
+                { role: 'Buyer' },
+                { role: 'Floor Worker' },
+              ].map(({ role }) => (
+                <div key={role} className="flex items-center gap-2">
+                  <span className="text-2xs text-zinc-600">{role}</span>
                 </div>
               ))}
             </div>

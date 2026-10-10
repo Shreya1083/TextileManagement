@@ -15,9 +15,11 @@ import { useAuth }     from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
 import { formatCurrency, formatCurrencyFull, cn } from '../../lib/utils'
 import {
-  mockDailySummary, mockDailyShifts, mockHourlyOutput,
-  mockMachineOutput, mockTopPerformers, mockEODTimeline,
-} from '../../mocks/data'
+  useEODSummary, useEODShifts, useEODHourlyOutput,
+  useEODMachineOutput, useEODTopPerformers, useEODTimeline
+} from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 /* ─── helpers ─────────────────────────────────────────────────────────── */
 const ChartTip = ({ active, payload, label }) => {
@@ -47,7 +49,7 @@ const TIMELINE_CFG = {
 
 const SEVERITY_BAR = { info: 'bg-primary-500', success: 'bg-emerald-500', warning: 'bg-amber-500', danger: 'bg-red-500' }
 
-const SHIFT_ICONS = { Morning: Sun, Afternoon: Sunset, Night: Moon }
+const SHIFT_ICONS = { Morning: Sun, Afternoon: Sunset, Evening: Sunset, Night: Moon }
 
 function KpiMini({ label, value, sub, color = 'text-zinc-50' }) {
   return (
@@ -80,17 +82,38 @@ function ProgressRing({ pct, size = 64, stroke = 6, color = '#6366f1' }) {
 /* ─── main component ──────────────────────────────────────────────────── */
 export default function EODDashboard() {
   const { user }    = useAuth()
-  const s           = mockDailySummary
-  const [activeShift, setActiveShift] = useState('Morning')
-  const shift       = mockDailyShifts.find(sh => sh.shift === activeShift)
+  
+  const { data: summaryData, isLoading, error } = useEODSummary()
+  const s = summaryData?.data || { totalOutput: 0, totalTarget: 0, rollsPassed: 0, rollsProduced: 0, totalPresent: 0, totalWorkers: 0, machineUptime: 0, downtimeEvents: 0, estimatedRevenue: 0, estimatedCost: 0, estimatedProfit: 0, dispatchesToday: 0, metresDispatched: 0, invoiceValue: 0 }
 
-  const achievePct  = Math.round((s.totalOutput / s.totalTarget) * 100)
-  const passRate    = Math.round((s.rollsPassed / s.rollsProduced) * 100)
-  const attendPct   = Math.round((s.totalPresent / s.totalWorkers) * 100)
+  const { data: shiftsData } = useEODShifts()
+  const dailyShifts = shiftsData?.data || []
+
+  const { data: hourlyData } = useEODHourlyOutput()
+  const hourlyOutput = hourlyData?.data || []
+
+  const { data: machineOutData } = useEODMachineOutput()
+  const machineOutput = machineOutData?.data || []
+
+  const { data: topPerfData } = useEODTopPerformers()
+  const topPerformers = topPerfData?.data || []
+
+  const { data: timelineData } = useEODTimeline()
+  const timeline = timelineData?.data || []
+
+  const [activeShift, setActiveShift] = useState('Morning')
+  const shift       = dailyShifts.find(sh => sh.shift === activeShift) || dailyShifts[0]
+
+  const achievePct  = s.totalTarget ? Math.round((s.totalOutput / s.totalTarget) * 100) : 0
+  const passRate    = s.rollsProduced ? Math.round((s.rollsPassed / s.rollsProduced) * 100) : 0
+  const attendPct   = s.totalWorkers ? Math.round((s.totalPresent / s.totalWorkers) * 100) : 0
 
   const today = new Date().toLocaleDateString('en-IN', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">
@@ -221,7 +244,7 @@ export default function EODDashboard() {
         </div>
         <div className="p-5">
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={mockHourlyOutput} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+            <AreaChart data={hourlyOutput} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
               <defs>
                 <linearGradient id="gHourly" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%"   stopColor="#6366f1" stopOpacity={0.3} />
@@ -255,8 +278,8 @@ export default function EODDashboard() {
         </h2>
         {/* Shift selector tabs */}
         <div className="flex gap-2">
-          {mockDailyShifts.map(sh => {
-            const Icon = SHIFT_ICONS[sh.shift]
+          {dailyShifts.map(sh => {
+            const Icon = SHIFT_ICONS[sh.shift] || Clock
             return (
               <button key={sh.shift} onClick={() => setActiveShift(sh.shift)}
                 className={cn('btn-secondary btn-sm gap-2',
@@ -318,14 +341,14 @@ export default function EODDashboard() {
         <div className="table-wrap xl:col-span-2">
           <div className="table-head">
             <p className="section-title">Machine Output Today</p>
-            <span className="badge badge-gray">{mockMachineOutput.length} machines</span>
+            <span className="badge badge-gray">{machineOutput.length} machines</span>
           </div>
           <table className="table-base">
             <thead>
               <tr><th>Machine</th><th>Output (m)</th><th>Target</th><th>Efficiency</th><th>Status</th></tr>
             </thead>
             <tbody>
-              {mockMachineOutput.map(m => {
+              {machineOutput.map(m => {
                 const eff = m.eff
                 return (
                   <tr key={m.machine}>
@@ -369,7 +392,7 @@ export default function EODDashboard() {
             <span className="text-2xs text-zinc-600">By output</span>
           </div>
           <ul className="flex-1 divide-y divide-zinc-800/40 overflow-y-auto scrollbar-thin">
-            {mockTopPerformers.map(p => (
+            {topPerformers.map(p => (
               <li key={p.rank} className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-800/30 transition-colors">
                 <div className="w-7 h-7 rounded-xl bg-zinc-800 flex items-center justify-center text-sm shrink-0">
                   {p.badge || <span className="text-zinc-600 font-bold text-xs">#{p.rank}</span>}
@@ -444,7 +467,7 @@ export default function EODDashboard() {
             <CalendarDays size={14} className="text-zinc-500" />
             <p className="section-title">Day Timeline</p>
           </div>
-          <span className="text-xs text-zinc-600">{mockEODTimeline.length} events</span>
+          <span className="text-xs text-zinc-600">{timeline.length} events</span>
         </div>
 
         <div className="px-5 py-4">
@@ -453,7 +476,7 @@ export default function EODDashboard() {
             <div className="absolute left-[18px] top-3 bottom-3 w-px bg-zinc-800" />
 
             <ul className="space-y-1">
-              {mockEODTimeline.map((ev, i) => {
+              {timeline.map((ev, i) => {
                 const cfg  = TIMELINE_CFG[ev.icon] || TIMELINE_CFG.close
                 const Icon = cfg.icon
                 return (

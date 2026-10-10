@@ -1,0 +1,28 @@
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String   // owner, store, supervisor, inspector, accounts
+  password  String   // In a real app, hashed
+  status    String   @default("ACTIVE")
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model MillSetting {
+  id            String   @id @default(cuid())
+  name          String
+  address       String
+  gstin         String
+  invoicePrefix String
+  currency      String   @default("INR (₹)")
+  timezone      String   @default("Asia/Kolkata (IST +05:30)")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("mill_settings")
+}

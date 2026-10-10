@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Menu, Bell, Search, X, AlertTriangle, AlertCircle, LogOut, ChevronDown } from 'lucide-react'
 import { useAuth }   from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
-import { mockAlerts } from '../../mocks/data'
+import { useAlerts } from '../../hooks/useAPI'
 import { cn }         from '../../lib/utils'
 import { useNavigate } from 'react-router-dom'
 
@@ -16,6 +16,9 @@ const ROLE_COLORS = {
 
 /* ── Alerts dropdown ── */
 function AlertPanel({ onClose }) {
+  const { data: alertsData, isLoading } = useAlerts()
+  const alerts = (alertsData?.data || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  
   const ref = useRef(null)
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }
@@ -34,31 +37,39 @@ function AlertPanel({ onClose }) {
           <span className="text-sm font-semibold text-zinc-200">Alerts</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="badge badge-red">{mockAlerts.length} new</span>
+          {alerts.length > 0 && <span className="badge badge-red">{alerts.length} new</span>}
           <button onClick={onClose} className="icon-btn !w-6 !h-6 !rounded-lg">
             <X size={11} />
           </button>
         </div>
       </div>
       <ul className="divide-y divide-zinc-800/60 max-h-72 overflow-y-auto scrollbar-thin">
-        {mockAlerts.map(a => (
-          <li key={a.id} className="flex gap-3 px-4 py-3.5 hover:bg-zinc-800/40 transition-colors cursor-pointer">
-            <div className={cn(
-              'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
-              a.severity === 'danger' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400',
-            )}>
-              {a.severity === 'danger' ? <AlertCircle size={13} /> : <AlertTriangle size={13} />}
-            </div>
-            <div className="min-w-0">
-              <p className={cn('text-xs font-semibold uppercase tracking-wider',
-                a.severity === 'danger' ? 'text-red-400' : 'text-amber-400')}>
-                {a.type.replace('-', ' ')}
-              </p>
-              <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed">{a.message}</p>
-              <p className="text-2xs text-zinc-600 mt-1">{a.time}</p>
-            </div>
-          </li>
-        ))}
+        {isLoading ? (
+          <li className="px-4 py-8 text-center text-xs text-zinc-500">Loading alerts...</li>
+        ) : alerts.length === 0 ? (
+          <li className="px-4 py-8 text-center text-xs text-zinc-500">No new alerts</li>
+        ) : (
+          alerts.map(a => (
+            <li key={a.id} className="flex gap-3 px-4 py-3.5 hover:bg-zinc-800/40 transition-colors cursor-pointer">
+              <div className={cn(
+                'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
+                a.severity === 'danger' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400',
+              )}>
+                {a.severity === 'danger' ? <AlertCircle size={13} /> : <AlertTriangle size={13} />}
+              </div>
+              <div className="min-w-0">
+                <p className={cn('text-xs font-semibold uppercase tracking-wider',
+                  a.severity === 'danger' ? 'text-red-400' : 'text-amber-400')}>
+                  {a.type.replace('-', ' ')}
+                </p>
+                <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed">{a.message}</p>
+                <p className="text-2xs text-zinc-600 mt-1">
+                  {a.createdAt ? new Date(a.createdAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                </p>
+              </div>
+            </li>
+          ))
+        )}
       </ul>
       <div className="px-4 py-3 border-t border-zinc-800/80">
         <button className="text-xs text-primary-400 hover:text-primary-300 font-medium transition-colors">
@@ -120,10 +131,13 @@ function UserMenu({ user, onClose, onLogout }) {
 export function Topbar({ onMenuClick }) {
   const { user, logout } = useAuth()
   const navigate         = useNavigate()
+  const { data: alertsData } = useAlerts()
+  const alerts = (alertsData?.data || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  
   const [showAlerts, setShowAlerts] = useState(false)
   const [showUser,   setShowUser]   = useState(false)
   const [searchFocus, setSearchFocus] = useState(false)
-  const unread = mockAlerts.filter(a => a.severity === 'danger').length
+  const unread = alerts.filter(a => a.severity === 'danger').length
 
   const handleLogout = () => {
     setShowUser(false)

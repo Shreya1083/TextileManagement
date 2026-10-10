@@ -1,0 +1,594 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../lib/queryClient'
+import API from '../services/api'
+
+// ========================================================================
+// DASHBOARD HOOKS
+// ========================================================================
+
+export const useOwnerStats = () => {
+  return useQuery({
+    queryKey: queryKeys.ownerStats,
+    queryFn: () => API.dashboard.getStats(),
+  })
+}
+
+export const useRevenueData = (months = 6) => {
+  return useQuery({
+    queryKey: queryKeys.revenueData(months),
+    queryFn: () => API.dashboard.getRevenueData(months),
+  })
+}
+
+export const useProductionData = (days = 7) => {
+  return useQuery({
+    queryKey: queryKeys.productionData(days),
+    queryFn: () => API.dashboard.getProductionData(days),
+  })
+}
+
+export const useQualityData = () => {
+  return useQuery({
+    queryKey: queryKeys.qualityData,
+    queryFn: () => API.dashboard.getQualityData(),
+  })
+}
+
+export const useAlerts = () => {
+  return useQuery({
+    queryKey: queryKeys.alerts,
+    queryFn: () => API.notifications.getAll(),
+    refetchInterval: 10000,
+  })
+}
+
+export const useCreateNotification = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.notifications.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts })
+    },
+  })
+}
+
+export const useFloorStats = () => {
+  return useQuery({
+    queryKey: queryKeys.floorStats,
+    queryFn: () => API.dashboard.getStats(), // Use getStats as a fallback for floor stats for now
+    refetchInterval: 10000,
+  })
+}
+
+export const useMachines = () => {
+  return useQuery({
+    queryKey: queryKeys.machines,
+    queryFn: () => API.production.getMachines(),
+    refetchInterval: 10000,
+  })
+}
+
+export const useEODSummary = (date) => {
+  return useQuery({
+    queryKey: queryKeys.eodSummary(date),
+    queryFn: () => API.dashboard.getEODSummary(date),
+  })
+}
+
+export const useEODShifts = (date) => {
+  return useQuery({
+    queryKey: queryKeys.eodShifts(date),
+    queryFn: () => API.dashboard.getShiftData(date),
+  })
+}
+
+export const useEODHourlyOutput = (date) => {
+  return useQuery({
+    queryKey: queryKeys.eodHourlyOutput(date),
+    queryFn: () => API.dashboard.getHourlyOutput(date),
+  })
+}
+
+export const useEODMachineOutput = (date) => {
+  return useQuery({
+    queryKey: queryKeys.eodMachineOutput(date),
+    queryFn: () => API.dashboard.getMachineOutput(date),
+  })
+}
+
+export const useEODTopPerformers = (date) => {
+  return useQuery({
+    queryKey: queryKeys.eodTopPerformers(date),
+    queryFn: () => API.dashboard.getTopPerformers(date),
+  })
+}
+
+export const useEODTimeline = (date) => {
+  return useQuery({
+    queryKey: queryKeys.eodTimeline(date),
+    queryFn: () => API.dashboard.getTimeline(date),
+  })
+}
+
+// ========================================================================
+// ORDERS HOOKS
+// ========================================================================
+
+export const useOrders = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.orders(filters),
+    queryFn: () => API.orders.getOrders(filters),
+  })
+}
+
+export const useOrder = (id) => {
+  return useQuery({
+    queryKey: queryKeys.order(id),
+    queryFn: () => API.orders.getOrderById(id),
+    enabled: !!id,
+  })
+}
+
+export const useBuyers = () => {
+  return useQuery({
+    queryKey: queryKeys.buyers,
+    queryFn: () => API.orders.getBuyers(),
+  })
+}
+
+export const useCreateBuyer = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.orders.createBuyer(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.buyers })
+    },
+  })
+}
+
+export const useCreateOrder = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.orders.createOrder(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
+export const useUpdateOrder = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => API.orders.updateOrder(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
+// ========================================================================
+// PRODUCTION HOOKS
+// ========================================================================
+
+export const useProductionMachines = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.productionMachines(filters),
+    queryFn: () => API.production.getMachines(filters),
+  })
+}
+
+export const useDowntimes = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.downtime(filters),
+    queryFn: () => API.production.getDowntimes(filters),
+  })
+}
+
+export const useCreateDowntime = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.production.createDowntime(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['production', 'downtime'] })
+    },
+  })
+}
+
+export const useProductionEntries = (filters = {}) => {
+  return useQuery({
+    queryKey: ['production', 'entries', filters],
+    queryFn: () => API.production.getProductionEntries(filters),
+  })
+}
+
+export const useCreateProductionEntry = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.production.createProductionEntry(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['production', 'entries'] })
+    },
+  })
+}
+
+export const useStartMachine = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, orderId, operatorId }) => 
+      API.production.startMachine(id, orderId, operatorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['production', 'machines'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+export const useStopMachine = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }) => API.production.stopMachine(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['production', 'machines'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+// ========================================================================
+// QUALITY HOOKS
+// ========================================================================
+
+export const useRolls = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.rolls(filters),
+    queryFn: () => API.quality.getRolls(filters),
+  })
+}
+
+export const useInspectRoll = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => API.quality.inspectRoll(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quality', 'rolls'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+export const useDefectReport = (startDate, endDate) => {
+  return useQuery({
+    queryKey: queryKeys.defectReport(startDate, endDate),
+    queryFn: () => API.quality.getDefectReport(startDate, endDate),
+    enabled: !!startDate && !!endDate,
+  })
+}
+
+// ========================================================================
+// INVENTORY HOOKS
+// ========================================================================
+
+export const useStock = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.stock(filters),
+    queryFn: () => API.inventory.getStock(filters),
+  })
+}
+
+export const useLowStock = () => {
+  return useQuery({
+    queryKey: queryKeys.lowStock,
+    queryFn: () => API.inventory.getLowStockItems(),
+  })
+}
+
+export const useBOMs = (filters = {}) => {
+  return useQuery({
+    queryKey: ['boms', filters],
+    queryFn: () => API.inventory.getBOMs(filters),
+  })
+}
+
+export const useSuppliers = () => {
+  return useQuery({
+    queryKey: queryKeys.suppliers,
+    queryFn: () => API.inventory.getSuppliers(),
+  })
+}
+
+export const useCreateSupplier = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.inventory.createSupplier(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers })
+    },
+  })
+}
+
+export const usePurchaseOrders = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.purchaseOrders(filters),
+    queryFn: () => API.inventory.getPurchaseOrders(filters),
+  })
+}
+
+export const useCreatePurchaseOrder = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.inventory.createPurchaseOrder(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'purchaseOrders'] })
+    },
+  })
+}
+
+export const useGateEntries = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.gateEntries(filters),
+    queryFn: () => API.inventory.getGateEntries(filters),
+  })
+}
+
+export const useCreateGateEntry = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.inventory.createGateEntry(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'gateEntries'] })
+    },
+  })
+}
+
+// ========================================================================
+// DISPATCH HOOKS
+// ========================================================================
+
+export const useFinishedStock = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.finishedStock(filters),
+    queryFn: () => API.dispatch.getFinishedStock(filters),
+  })
+}
+
+export const useDispatches = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.dispatches(filters),
+    queryFn: () => API.dispatch.getDispatches(filters),
+  })
+}
+
+export const useInvoices = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.invoices(filters),
+    queryFn: () => API.dispatch.getInvoices(filters),
+  })
+}
+
+export const useCreateDispatch = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.dispatch.createDispatch(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatch'] })
+    },
+  })
+}
+
+export const useCreateInvoice = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.dispatch.createInvoice(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatch', 'invoices'] })
+    },
+  })
+}
+
+// ========================================================================
+// FINANCE HOOKS
+// ========================================================================
+
+export const useCosting = (startDate, endDate) => {
+  return useQuery({
+    queryKey: queryKeys.costing(startDate, endDate),
+    queryFn: () => API.finance.getCostingData(startDate, endDate),
+    enabled: !!startDate && !!endDate,
+  })
+}
+
+export const usePnL = (startDate, endDate) => {
+  return useQuery({
+    queryKey: queryKeys.pnl(startDate, endDate),
+    queryFn: () => API.finance.getPnLData(startDate, endDate),
+    enabled: !!startDate && !!endDate,
+  })
+}
+
+export const useReceivables = () => {
+  return useQuery({
+    queryKey: queryKeys.receivables,
+    queryFn: () => API.finance.getReceivables(),
+  })
+}
+
+// ========================================================================
+// HR HOOKS
+// ========================================================================
+
+export const useWorkers = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.workers(filters),
+    queryFn: () => API.hr.getWorkers(filters),
+  })
+}
+
+export const useCreateWorker = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.hr.createWorker(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workers({}) })
+    },
+  })
+}
+
+export const useWorker = (id) => {
+  return useQuery({
+    queryKey: queryKeys.worker(id),
+    queryFn: () => API.hr.getWorkerById(id),
+    enabled: !!id,
+  })
+}
+
+export const useAttendance = (date) => {
+  return useQuery({
+    queryKey: queryKeys.attendance(date),
+    queryFn: () => API.hr.getAttendance(date),
+  })
+}
+
+export const useMarkAttendance = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.hr.markAttendance(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'attendance'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workerProfiles })
+    },
+  })
+}
+
+
+export const useWages = (month, year) => {
+  return useQuery({
+    queryKey: queryKeys.wages(month, year),
+    queryFn: () => API.hr.getWages(month, year),
+    enabled: !!month && !!year,
+  })
+}
+
+export const useWorkerProfiles = () => {
+  return useQuery({
+    queryKey: queryKeys.workerProfiles,
+    queryFn: () => API.hr.getWorkerProfiles(),
+  })
+}
+
+export const useWorkerDashboardStats = () => {
+  return useQuery({
+    queryKey: queryKeys.workerDashboardStats,
+    queryFn: () => API.hr.getWorkerDashboardStats(),
+  })
+}
+
+export const useAttendanceSummary = (months = 6) => {
+  return useQuery({
+    queryKey: queryKeys.attendanceSummary(months),
+    queryFn: () => API.hr.getAttendanceSummary(months),
+  })
+}
+
+export const useWageTrend = (months = 6) => {
+  return useQuery({
+    queryKey: queryKeys.wageTrend(months),
+    queryFn: () => API.hr.getWageTrend(months),
+  })
+}
+
+// ========================================================================
+// TRACKING HOOKS
+// ========================================================================
+
+export const useOrderTracking = (orderId) => {
+  return useQuery({
+    queryKey: queryKeys.orderTracking(orderId),
+    queryFn: () => API.tracking.trackOrder(orderId),
+    enabled: !!orderId,
+  })
+}
+
+// ========================================================================
+// SETTINGS HOOKS
+// ========================================================================
+
+export const useUsers = () => {
+  return useQuery({
+    queryKey: queryKeys.users,
+    queryFn: () => API.settings.getUsers(),
+  })
+}
+
+export const useCreateUser = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.settings.createUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users })
+    },
+  })
+}
+
+export const useUpdateUser = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => API.settings.updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users })
+    },
+  })
+}
+
+export const useMillSettings = () => {
+  return useQuery({
+    queryKey: ['settings', 'mill'],
+    queryFn: () => API.settings.getMillSettings(),
+  })
+}
+
+export const useCreateMillSetting = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.settings.createMillSetting(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'mill'] })
+    },
+  })
+}
+
+export const useUpdateMillSetting = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => API.settings.updateMillSetting(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'mill'] })
+    },
+  })
+}
+
+export const useSettings = () => {
+  return useQuery({
+    queryKey: ['settings', 'singleton'],
+    queryFn: () => API.settings.getSettings(),
+  })
+}
+
+export const useCreateSettings = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.settings.createSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'singleton'] })
+    },
+  })
+}
+
+export const useUpdateSettings = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.settings.updateSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'singleton'] })
+    },
+  })
+}

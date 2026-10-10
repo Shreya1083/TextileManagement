@@ -1,37 +1,59 @@
 import { PageHeader }         from '../../components/ui/PageHeader'
 import { ExportMenu }         from '../../components/ui/ExportMenu'
-import { mockWorkers }        from '../../mocks/data'
 import { formatCurrencyFull } from '../../lib/utils'
 import { exportPDF, exportExcel } from '../../lib/exportUtils'
+import { useWages } from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 const TITLE    = 'Wage Sheet'
 const SUBTITLE = 'September 2026 — Monthly payroll'
 const COLUMNS  = ['ID', 'Name', 'Role', 'Daily Rate (₹)', 'Days Present', 'Gross (₹)', 'Deductions (₹)', 'Net Pay (₹)']
 
-function buildRows() {
-  return mockWorkers.map(w => [
-    w.id,
-    w.name,
-    w.role,
-    w.wage,
-    w.present,
-    w.wage * w.present,
-    0,
-    w.net,
-  ])
+function buildRows(workers) {
+  return workers.map(w => {
+    const present = w.present || 26
+    const net = w.wage * present
+    return [
+      w.workerId,
+      w.name,
+      w.role,
+      w.wage,
+      present,
+      w.wage * present,
+      0,
+      net,
+    ]
+  })
 }
 
 export default function WagesPage() {
-  const total   = mockWorkers.reduce((s, w) => s + w.net, 0)
-  const avgDays = (mockWorkers.reduce((s, w) => s + w.present, 0) / mockWorkers.length).toFixed(1)
+  const { data: wagesData, isLoading, error } = useWages('09', '2026')
+  const wages = wagesData?.data || []
+
+  // Map to workersWithAttendance
+  const workersWithAttendance = wages.map(w => ({
+    workerId: w.workerId,
+    name: w.name,
+    role: w.role,
+    wage: w.wage,
+    present: w.daysPresent,
+    net: w.netPay
+  }))
+
+  const total   = workersWithAttendance.reduce((s, w) => s + w.net, 0)
+  const avgDays = workersWithAttendance.length ? (workersWithAttendance.reduce((s, w) => s + w.present, 0) / workersWithAttendance.length).toFixed(1) : 0
 
   const handleExportPDF = () => exportPDF({
-    title: TITLE, subtitle: SUBTITLE, columns: COLUMNS, rows: buildRows(),
+    title: TITLE, subtitle: SUBTITLE, columns: COLUMNS, rows: buildRows(workersWithAttendance),
     filename: 'WageSheet_Sep2026',
   })
   const handleExportExcel = () => exportExcel({
-    filename: 'WageSheet_Sep2026', sheetName: 'Wages', columns: COLUMNS, rows: buildRows(),
+    filename: 'WageSheet_Sep2026', sheetName: 'Wages', columns: COLUMNS, rows: buildRows(workersWithAttendance),
   })
+
+  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
+  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">
@@ -46,7 +68,7 @@ export default function WagesPage() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label:'Total Wages', value:formatCurrencyFull(total), color:'text-zinc-50',     accent:'bg-gradient-to-r from-primary-500 to-violet-500' },
-          { label:'Workers',     value:mockWorkers.length,         color:'text-zinc-50',     accent:'bg-gradient-to-r from-cyan-500 to-blue-500'      },
+          { label:'Workers',     value:workersWithAttendance.length,         color:'text-zinc-50',     accent:'bg-gradient-to-r from-cyan-500 to-blue-500'      },
           { label:'Avg Days',    value:avgDays,                    color:'text-emerald-400', accent:'bg-gradient-to-r from-emerald-500 to-teal-500'   },
         ].map(c => (
           <div key={c.label} className="card p-5 relative overflow-hidden">
@@ -60,9 +82,9 @@ export default function WagesPage() {
         <table className="table-base">
           <thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Daily Rate</th><th>Days</th><th>Gross</th><th>Deductions</th><th>Net Pay</th></tr></thead>
           <tbody>
-            {mockWorkers.map(w => (
-              <tr key={w.id}>
-                <td className="font-mono text-2xs text-zinc-600">{w.id}</td>
+            {workersWithAttendance.map(w => (
+              <tr key={w.workerId}>
+                <td className="font-mono text-2xs text-zinc-600">{w.workerId}</td>
                 <td className="font-semibold text-zinc-200">{w.name}</td>
                 <td className="text-zinc-400 text-xs">{w.role}</td>
                 <td className="font-mono text-xs text-zinc-300">₹{w.wage}/day</td>
