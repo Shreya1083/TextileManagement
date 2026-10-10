@@ -1,15 +1,23 @@
 import { useState } from 'react'
-import { Search, AlertTriangle, Plus, TrendingDown } from 'lucide-react'
+import { Search, AlertTriangle, Plus } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { ExportMenu } from '../../components/ui/ExportMenu'
 import { useAuth }    from '../../context/AuthContext'
 import { mockYarnStock } from '../../mocks/data'
+import { exportPDF, exportExcel } from '../../lib/exportUtils'
 import { cn } from '../../lib/utils'
+
+const COLUMNS = ['Yarn Type', 'Colour', 'Current', 'Reserved', 'Available', 'Reorder Level', 'Unit', 'Status']
+
+function buildRows(stock) {
+  return stock.map(y => [
+    y.type, y.colour, y.current, y.reserved, y.current - y.reserved, y.reorder, y.unit, y.status,
+  ])
+}
 
 function StockBar({ current, reserved, reorder }) {
   const available = current - reserved
-  const usedPct   = Math.min(100, (reserved / current) * 100)
-  const okPct     = Math.min(100, (available / (reorder * 2)) * 100)
   return (
     <div className="flex items-center gap-2 min-w-[120px]">
       <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
@@ -31,12 +39,25 @@ export default function StockPage() {
   )
   const lowCount = mockYarnStock.filter(y => y.status !== 'OK').length
 
+  const handleExportPDF = () => exportPDF({
+    title: 'Stock Levels', subtitle: 'Current, reserved and available yarn inventory',
+    columns: COLUMNS, rows: buildRows(filtered), filename: 'YarnStock',
+  })
+  const handleExportExcel = () => exportExcel({
+    filename: 'YarnStock', sheetName: 'Stock', columns: COLUMNS, rows: buildRows(filtered),
+  })
+
   return (
     <div className="page-root">
       <PageHeader
         title="Stock Levels"
         subtitle={`Managed by ${user?.name} · Current, reserved and available yarn inventory`}
-        actions={<button className="btn-primary btn-sm"><Plus size={14} />Add GRN</button>}
+        actions={
+          <div className="flex gap-2">
+            <ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
+            <button className="btn-primary btn-sm"><Plus size={14} />Add GRN</button>
+          </div>
+        }
       />
 
       {lowCount > 0 && (

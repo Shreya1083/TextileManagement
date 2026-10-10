@@ -1,0 +1,16 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "MEDIUM",
+      "label": "DEMO_USERS bundled in production",
+      "detail": "AuthContext.jsx exports DEMO_USERS with plaintext demo passwords. This module ships in every production bundle until replaced with a real API. The TODO comment documents the gap; track it as a required pre-production action."
+    },
+    {
+      "severity": "LOW",
+      "label": "Hardcoded stats in public About section",
+      "detail": "HomePage.jsx STATS array and SignInPage.jsx bottom stats display specific revenue and machine-uptime figures (₹18.4L Sep revenue, 94.2%) as if live. Replace with real API data or label as demo/sample before public exposure."
+    }
+  ],
+  "reviewDoc": "c:\\Users\\srush\\odootextile\\TextileManagement\\client\\.agents\\tasks\\review-doc.md"
+}

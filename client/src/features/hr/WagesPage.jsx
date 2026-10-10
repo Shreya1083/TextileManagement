@@ -1,16 +1,44 @@
 import { PageHeader }         from '../../components/ui/PageHeader'
+import { ExportMenu }         from '../../components/ui/ExportMenu'
 import { mockWorkers }        from '../../mocks/data'
 import { formatCurrencyFull } from '../../lib/utils'
+import { exportPDF, exportExcel } from '../../lib/exportUtils'
+
+const TITLE    = 'Wage Sheet'
+const SUBTITLE = 'September 2026 — Monthly payroll'
+const COLUMNS  = ['ID', 'Name', 'Role', 'Daily Rate (₹)', 'Days Present', 'Gross (₹)', 'Deductions (₹)', 'Net Pay (₹)']
+
+function buildRows() {
+  return mockWorkers.map(w => [
+    w.id,
+    w.name,
+    w.role,
+    w.wage,
+    w.present,
+    w.wage * w.present,
+    0,
+    w.net,
+  ])
+}
 
 export default function WagesPage() {
   const total   = mockWorkers.reduce((s, w) => s + w.net, 0)
   const avgDays = (mockWorkers.reduce((s, w) => s + w.present, 0) / mockWorkers.length).toFixed(1)
+
+  const handleExportPDF = () => exportPDF({
+    title: TITLE, subtitle: SUBTITLE, columns: COLUMNS, rows: buildRows(),
+    filename: 'WageSheet_Sep2026',
+  })
+  const handleExportExcel = () => exportExcel({
+    filename: 'WageSheet_Sep2026', sheetName: 'Wages', columns: COLUMNS, rows: buildRows(),
+  })
+
   return (
     <div className="page-root">
-      <PageHeader title="Wage Sheet" subtitle="September 2026 — Monthly payroll"
+      <PageHeader title={TITLE} subtitle={SUBTITLE}
         actions={
           <div className="flex gap-2">
-            <button className="btn-secondary btn-sm">Export CSV</button>
+            <ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
             <button className="btn-primary btn-sm">Generate Payroll</button>
           </div>
         }

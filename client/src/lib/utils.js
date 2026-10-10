@@ -51,7 +51,6 @@ export function getStatusColor(status) {
     LOW:             'badge-yellow',
     OUT:             'badge-red',
     OPEN:            'badge-red',
-    CLOSED:          'badge-gray',
     RAISED:          'badge-primary',
     PARTIALLY_RECEIVED: 'badge-orange',
     RECEIVED:        'badge-green',

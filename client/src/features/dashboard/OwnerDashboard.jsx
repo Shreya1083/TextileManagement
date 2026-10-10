@@ -4,7 +4,7 @@ import {
 } from 'recharts'
 import {
   DollarSign, Package, Factory, CheckCircle, AlertTriangle,
-  Clock, TrendingUp, Zap, ArrowRight, Activity, CalendarCheck,
+  Clock, Zap, ArrowRight, Activity, CalendarCheck,
 } from 'lucide-react'
 import { StatCard }    from '../../components/ui/StatCard'
 import { Badge }       from '../../components/ui/Badge'

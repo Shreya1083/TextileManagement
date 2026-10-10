@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import {
-  AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
+  AreaChart, Area,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import {
-  Factory, CheckCircle, AlertTriangle, Clock, Users, TrendingUp,
-  TrendingDown, DollarSign, Package, Truck, FileText, Zap,
+  Factory, CheckCircle, AlertTriangle, Clock, Users,
+  DollarSign, Package, Truck, FileText, Zap,
   ArrowRight, BarChart3, Activity, Star, RefreshCw, Download,
-  ChevronRight, CalendarDays, Moon, Sun, Sunset,
+  CalendarDays, Moon, Sun, Sunset,
 } from 'lucide-react'
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { Badge }       from '../../components/ui/Badge'

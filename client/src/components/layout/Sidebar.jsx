@@ -6,16 +6,18 @@ import {
   LayoutDashboard, Factory, Package, ShoppingCart, Cog, Eye,
   Truck, FileText, Users, DollarSign, Settings, LogOut,
   Sparkles, BarChart3, ClipboardCheck, Boxes, UserCheck,
-  AlertTriangle, X, Layers, Wallet, CalendarCheck,
+  AlertTriangle, X, Layers, Wallet, CalendarCheck, Home,
 } from 'lucide-react'
 
 const NAV = [
   {
     group: 'Overview',
     items: [
-      { to: '/dashboard', label: 'Dashboard',        icon: LayoutDashboard, roles: ['owner'] },
-      { to: '/floor',     label: 'Floor Monitor',     icon: Factory,         roles: ['owner','supervisor','inspector'] },
-      { to: '/eod',       label: 'End-of-Day Report', icon: CalendarCheck,   roles: ['owner','supervisor','accounts'] },
+      { to: '/dashboard',          label: 'Dashboard',          icon: LayoutDashboard, roles: ['owner'] },
+      { to: '/floor',              label: 'Floor Monitor',       icon: Factory,         roles: ['owner','supervisor','inspector'] },
+      { to: '/eod',                label: 'End-of-Day Report',   icon: CalendarCheck,   roles: ['owner','supervisor','accounts'] },
+      // Worker-only home
+      { to: '/worker/my-dashboard', label: 'My Dashboard',       icon: Home,            roles: ['worker'] },
     ],
   },
   {
@@ -60,10 +62,11 @@ const NAV = [
   {
     group: 'HR & Finance',
     items: [
-      { to: '/hr/workers',      label: 'Workers',       icon: Users,      roles: ['owner','accounts'] },
-      { to: '/hr/attendance',   label: 'Attendance',    icon: UserCheck,  roles: ['owner','supervisor','accounts'] },
-      { to: '/hr/wages',        label: 'Wages',          icon: Wallet,     roles: ['owner','accounts'] },
-      { to: '/finance/costing', label: 'Order Costing', icon: BarChart3,  roles: ['owner'] },
+      { to: '/hr/dashboard',    label: 'Worker Dashboard', icon: UserCheck,  roles: ['owner','supervisor','accounts'] },
+      { to: '/hr/workers',      label: 'Workers',          icon: Users,      roles: ['owner','accounts'] },
+      { to: '/hr/attendance',   label: 'Attendance',       icon: UserCheck,  roles: ['owner','supervisor','accounts'] },
+      { to: '/hr/wages',        label: 'Wages',            icon: Wallet,     roles: ['owner','accounts'] },
+      { to: '/finance/costing', label: 'Order Costing',    icon: BarChart3,  roles: ['owner'] },
       { to: '/finance/pnl',     label: 'P&L Report',    icon: DollarSign, roles: ['owner'] },
     ],
   },
@@ -88,7 +91,7 @@ const ROLE_COLORS = {
 export function Sidebar({ open, onClose }) {
   const { user, logout, hasRole } = useAuth()
   const navigate = useNavigate()
-  const handleLogout = () => { logout(); navigate('/login') }
+  const handleLogout = () => { logout(); navigate('/') }
 
   return (
     <>

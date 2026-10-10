@@ -1,66 +1,531 @@
 import { useState } from 'react'
-import { Plus, Search, Building2, Package } from 'lucide-react'
+import {
+  Plus, Search, Building2, Phone, MapPin,
+  FileText, Mail, Globe, Hash, CheckCircle,
+  Edit2, Trash2, AlertTriangle, Package,
+} from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { mockSuppliers } from '../../mocks/data'
+import { cn } from '../../lib/utils'
 
-export default function SuppliersPage() {
-  const [showAdd, setShowAdd] = useState(false)
-  const [search, setSearch]   = useState('')
-  const filtered = mockSuppliers.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.city.toLowerCase().includes(search.toLowerCase())
+/* ── colour cycle for supplier avatars ──────────────────────────────── */
+const AVATAR_COLORS = [
+  'from-primary-500 to-violet-600',
+  'from-cyan-500    to-blue-600',
+  'from-emerald-500 to-teal-600',
+  'from-amber-500   to-orange-600',
+  'from-pink-500    to-rose-600',
+  'from-violet-500  to-purple-600',
+]
+
+/* ── blank form template ─────────────────────────────────────────────── */
+const BLANK = {
+  name:        '',
+  contactPerson:'',
+  city:        '',
+  state:       '',
+  phone:       '',
+  altPhone:    '',
+  email:       '',
+  gstin:       '',
+  pan:         '',
+  website:     '',
+  yarnTypes:   '',
+  leadDays:    '',
+  paymentTerms:'Net 30',
+  notes:       '',
+}
+
+/* ── validation ──────────────────────────────────────────────────────── */
+function validate(form) {
+  const errors = {}
+  if (!form.name.trim())    errors.name  = 'Company name is required'
+  if (!form.city.trim())    errors.city  = 'City is required'
+  if (!form.phone.trim())   errors.phone = 'Contact number is required'
+  if (form.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(form.gstin))
+    errors.gstin = 'Invalid GSTIN format (e.g. 27AABCA1234B1Z5)'
+  return errors
+}
+
+/* ── AddEditModal ────────────────────────────────────────────────────── */
+function SupplierModal({ open, onClose, onSave, initial, editMode }) {
+  const [form,   setForm]   = useState(initial || BLANK)
+  const [errors, setErrors] = useState({})
+  const [saved,  setSaved]  = useState(false)
+
+  // Sync when initial changes (editing different rows)
+  const handleOpen = () => { setForm(initial || BLANK); setErrors({}); setSaved(false) }
+
+  const set = (k, v) => {
+    setForm(p => ({ ...p, [k]: v }))
+    if (errors[k]) setErrors(p => { const e = { ...p }; delete e[k]; return e })
+  }
+
+  const handleSave = () => {
+    const errs = validate(form)
+    if (Object.keys(errs).length) { setErrors(errs); return }
+    setSaved(true)
+    setTimeout(() => {
+      onSave(form)
+      setSaved(false)
+      onClose()
+    }, 700)
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={editMode ? `Edit Supplier — ${form.name}` : 'Add New Supplier'}
+      description={editMode ? 'Update supplier details' : 'Register a new yarn or material supplier'}
+      size="lg"
+    >
+      <div className="space-y-5">
+
+        {/* ── Company ── */}
+        <div>
+          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Company Information</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="label">Company / Firm Name <span className="text-red-400">*</span></label>
+              <div className="relative">
+                <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  className={cn('input pl-9', errors.name && 'border-red-500/60 ring-2 ring-red-500/20')}
+                  placeholder="e.g. Agarwal Yarns Pvt Ltd"
+                  value={form.name}
+                  onChange={e => set('name', e.target.value)}
+                />
+              </div>
+              {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
+            </div>
+
+            <div>
+              <label className="label">Contact Person</label>
+              <input className="input" placeholder="Owner / Manager name"
+                value={form.contactPerson} onChange={e => set('contactPerson', e.target.value)} />
+            </div>
+
+            <div>
+              <label className="label">Yarn / Material Types Supplied</label>
+              <input className="input" placeholder="e.g. Cotton 40s, Poly 150D"
+                value={form.yarnTypes} onChange={e => set('yarnTypes', e.target.value)} />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Contact ── */}
+        <div className="border-t border-zinc-800/80 pt-5">
+          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Contact Details</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Phone <span className="text-red-400">*</span></label>
+              <div className="relative">
+                <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  className={cn('input pl-9', errors.phone && 'border-red-500/60 ring-2 ring-red-500/20')}
+                  placeholder="+91 98765 43210"
+                  value={form.phone}
+                  onChange={e => set('phone', e.target.value)}
+                />
+              </div>
+              {errors.phone && <p className="text-xs text-red-400 mt-1">{errors.phone}</p>}
+            </div>
+
+            <div>
+              <label className="label">Alternate Phone</label>
+              <input className="input" placeholder="+91 97XXX XXXXX"
+                value={form.altPhone} onChange={e => set('altPhone', e.target.value)} />
+            </div>
+
+            <div>
+              <label className="label">Email</label>
+              <div className="relative">
+                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input className="input pl-9" placeholder="supplier@example.com"
+                  value={form.email} onChange={e => set('email', e.target.value)} />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Website</label>
+              <div className="relative">
+                <Globe size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input className="input pl-9" placeholder="https://..."
+                  value={form.website} onChange={e => set('website', e.target.value)} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Address ── */}
+        <div className="border-t border-zinc-800/80 pt-5">
+          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Address</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">City <span className="text-red-400">*</span></label>
+              <div className="relative">
+                <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  className={cn('input pl-9', errors.city && 'border-red-500/60 ring-2 ring-red-500/20')}
+                  placeholder="Surat"
+                  value={form.city}
+                  onChange={e => set('city', e.target.value)}
+                />
+              </div>
+              {errors.city && <p className="text-xs text-red-400 mt-1">{errors.city}</p>}
+            </div>
+
+            <div>
+              <label className="label">State</label>
+              <input className="input" placeholder="Gujarat"
+                value={form.state} onChange={e => set('state', e.target.value)} />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Legal & Terms ── */}
+        <div className="border-t border-zinc-800/80 pt-5">
+          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Legal & Terms</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">GSTIN</label>
+              <div className="relative">
+                <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  className={cn('input pl-9 font-mono uppercase', errors.gstin && 'border-red-500/60 ring-2 ring-red-500/20')}
+                  placeholder="27AABCA1234B1Z5"
+                  maxLength={15}
+                  value={form.gstin}
+                  onChange={e => set('gstin', e.target.value.toUpperCase())}
+                />
+              </div>
+              {errors.gstin && <p className="text-xs text-red-400 mt-1">{errors.gstin}</p>}
+            </div>
+
+            <div>
+              <label className="label">PAN</label>
+              <input className="input font-mono uppercase" placeholder="AABCA1234B"
+                maxLength={10}
+                value={form.pan}
+                onChange={e => set('pan', e.target.value.toUpperCase())}
+              />
+            </div>
+
+            <div>
+              <label className="label">Lead Time (days)</label>
+              <input className="input font-mono" type="number" placeholder="7"
+                value={form.leadDays} onChange={e => set('leadDays', e.target.value)} />
+            </div>
+
+            <div>
+              <label className="label">Payment Terms</label>
+              <select className="input" value={form.paymentTerms}
+                onChange={e => set('paymentTerms', e.target.value)}>
+                <option>Advance</option>
+                <option>Net 15</option>
+                <option>Net 30</option>
+                <option>Net 45</option>
+                <option>Net 60</option>
+                <option>Cash on Delivery</option>
+              </select>
+            </div>
+
+            <div className="col-span-2">
+              <label className="label">Notes</label>
+              <textarea className="input" rows={2} placeholder="Any remarks about this supplier…"
+                value={form.notes} onChange={e => set('notes', e.target.value)} />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="flex justify-between items-center pt-2 border-t border-zinc-800/60">
+          <p className="text-2xs text-zinc-600">
+            <span className="text-red-400">*</span> Required fields
+          </p>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button
+              className={cn('btn-primary gap-2', saved && 'bg-emerald-600 hover:bg-emerald-500')}
+              onClick={handleSave}
+              disabled={saved}
+            >
+              {saved
+                ? <><CheckCircle size={14} />{editMode ? 'Updated!' : 'Supplier Added!'}</>
+                : editMode ? 'Save Changes' : 'Add Supplier'
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
   )
+}
+
+/* ── Delete confirm modal ─────────────────────────────────────────────── */
+function DeleteModal({ open, supplier, onConfirm, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Remove Supplier" size="sm">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/25 rounded-2xl">
+          <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-300">Remove {supplier?.name}?</p>
+            <p className="text-xs text-red-400/80 mt-0.5">
+              This will remove the supplier from the list. Any existing POs will remain unaffected.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-danger" onClick={onConfirm}>Yes, Remove</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* ── main page ───────────────────────────────────────────────────────── */
+export default function SuppliersPage() {
+  // Live state — starts from mock data, new entries are added in-memory
+  const [suppliers, setSuppliers] = useState(
+    mockSuppliers.map((s, i) => ({
+      ...s,
+      contactPerson: '',
+      email:         '',
+      state:         '',
+      altPhone:      '',
+      gstin:         s.gstin,
+      pan:           '',
+      website:       '',
+      yarnTypes:     '',
+      leadDays:      '7',
+      paymentTerms:  'Net 30',
+      notes:         '',
+      phone:         s.contact,
+      colorIdx:      i,
+    }))
+  )
+
+  const [search,      setSearch]      = useState('')
+  const [showAdd,     setShowAdd]     = useState(false)
+  const [editTarget,  setEditTarget]  = useState(null)
+  const [deleteTarget,setDeleteTarget]= useState(null)
+
+  const filtered = suppliers.filter(s =>
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
+    s.city.toLowerCase().includes(search.toLowerCase()) ||
+    (s.yarnTypes || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  /* ── handlers ── */
+  const handleAdd = (form) => {
+    const newId = `S-${String(suppliers.length + 1).padStart(2, '0')}`
+    setSuppliers(p => [
+      ...p,
+      {
+        ...form,
+        id:        newId,
+        contact:   form.phone,
+        activePos: 0,
+        colorIdx:  p.length,
+      },
+    ])
+  }
+
+  const handleEdit = (form) => {
+    setSuppliers(p =>
+      p.map(s => s.id === editTarget.id
+        ? { ...s, ...form, contact: form.phone }
+        : s
+      )
+    )
+    setEditTarget(null)
+  }
+
+  const handleDelete = () => {
+    setSuppliers(p => p.filter(s => s.id !== deleteTarget.id))
+    setDeleteTarget(null)
+  }
+
   return (
     <div className="page-root">
-      <PageHeader title="Suppliers" subtitle="Yarn and material supplier management"
-        actions={<button className="btn-primary btn-sm" onClick={() => setShowAdd(true)}><Plus size={14} />Add Supplier</button>}
+      <PageHeader
+        title="Suppliers"
+        subtitle={`${suppliers.length} supplier${suppliers.length !== 1 ? 's' : ''} registered`}
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="relative hidden sm:block">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input className="input-sm pl-8 w-48" placeholder="Search suppliers…"
+                value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <button className="btn-primary btn-sm gap-1.5" onClick={() => setShowAdd(true)}>
+              <Plus size={14} />Add Supplier
+            </button>
+          </div>
+        }
       />
-      <div className="table-wrap">
-        <div className="table-head">
-          <p className="section-title">{filtered.length} Suppliers</p>
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-            <input className="input-sm pl-8 w-48" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
+
+      {/* ── Supplier cards grid ── */}
+      {filtered.length === 0 ? (
+        <div className="card flex flex-col items-center justify-center py-20 text-center">
+          <Building2 size={32} className="text-zinc-700 mb-3" />
+          <p className="text-sm font-semibold text-zinc-400">
+            {search ? 'No suppliers match your search' : 'No suppliers yet'}
+          </p>
+          {!search && (
+            <button className="btn-primary btn-sm mt-4" onClick={() => setShowAdd(true)}>
+              <Plus size={13} />Add first supplier
+            </button>
+          )}
         </div>
-        <table className="table-base">
-          <thead><tr><th>ID</th><th>Name</th><th>City</th><th>Contact</th><th>GSTIN</th><th>Active POs</th></tr></thead>
-          <tbody>
-            {filtered.map(s => (
-              <tr key={s.id}>
-                <td className="font-mono text-2xs text-zinc-600">{s.id}</td>
-                <td>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-primary-500/15 flex items-center justify-center">
-                      <Building2 size={13} className="text-primary-400" />
-                    </div>
-                    <span className="font-semibold text-zinc-200">{s.name}</span>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(s => {
+            const color = AVATAR_COLORS[s.colorIdx % AVATAR_COLORS.length]
+            return (
+              <div key={s.id} className="card-hover p-5 group">
+                {/* Header */}
+                <div className="flex items-start gap-3 mb-4">
+                  <div className={cn(
+                    'w-11 h-11 rounded-2xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-base shrink-0 shadow-glow-sm',
+                    color,
+                  )}>
+                    {s.name.charAt(0)}
                   </div>
-                </td>
-                <td className="text-zinc-400">{s.city}</td>
-                <td className="font-mono text-xs text-zinc-300">{s.contact}</td>
-                <td className="font-mono text-2xs text-zinc-600">{s.gstin}</td>
-                <td><span className={`badge ${s.activePos > 0 ? 'badge-blue' : 'badge-gray'}`}>{s.activePos} PO{s.activePos !== 1 ? 's' : ''}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Supplier">
-        <div className="space-y-4">
-          <div><label className="label">Company Name</label><input className="input" /></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">City</label><input className="input" /></div>
-            <div><label className="label">Contact</label><input className="input" /></div>
-          </div>
-          <div><label className="label">GSTIN</label><input className="input" /></div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button className="btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button className="btn-primary">Save Supplier</button>
-          </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-zinc-100 leading-tight">{s.name}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin size={10} className="text-zinc-600 shrink-0" />
+                      <p className="text-xs text-zinc-500 truncate">{s.city}{s.state ? `, ${s.state}` : ''}</p>
+                    </div>
+                    {s.yarnTypes && (
+                      <p className="text-2xs text-zinc-600 mt-0.5 truncate">
+                        <Package size={9} className="inline mr-1" />{s.yarnTypes}
+                      </p>
+                    )}
+                  </div>
+                  {/* Actions — reveal on hover */}
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      className="icon-btn !w-7 !h-7 !rounded-lg"
+                      title="Edit supplier"
+                      onClick={() => setEditTarget(s)}
+                    >
+                      <Edit2 size={12} />
+                    </button>
+                    <button
+                      className="icon-btn !w-7 !h-7 !rounded-lg hover:!bg-red-500/20 hover:!text-red-400"
+                      title="Remove supplier"
+                      onClick={() => setDeleteTarget(s)}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-2 text-xs border-t border-zinc-800/60 pt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-1.5 text-zinc-600"><Phone size={10} />Phone</span>
+                    <span className="font-mono text-zinc-300">{s.contact || s.phone}</span>
+                  </div>
+
+                  {s.email && (
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-1.5 text-zinc-600"><Mail size={10} />Email</span>
+                      <span className="text-zinc-400 text-[10px] truncate max-w-[140px]">{s.email}</span>
+                    </div>
+                  )}
+
+                  {s.gstin && (
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-1.5 text-zinc-600"><FileText size={10} />GSTIN</span>
+                      <span className="font-mono text-2xs text-zinc-500">{s.gstin}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-600">Active POs</span>
+                    <span className={`badge ${s.activePos > 0 ? 'badge-blue' : 'badge-gray'}`}>
+                      {s.activePos} PO{s.activePos !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {s.paymentTerms && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-600">Terms</span>
+                      <span className="text-zinc-400">{s.paymentTerms}</span>
+                    </div>
+                  )}
+
+                  {s.leadDays && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-600">Lead time</span>
+                      <span className="text-zinc-400">{s.leadDays} days</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ID pill */}
+                <div className="mt-3 pt-2.5 border-t border-zinc-800/40 flex justify-between items-center">
+                  <span className="font-mono text-2xs text-zinc-700">{s.id}</span>
+                  {s.notes && (
+                    <span className="text-2xs text-zinc-600 italic truncate max-w-[140px]">{s.notes}</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
-      </Modal>
+      )}
+
+      {/* ── Add modal ── */}
+      <SupplierModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onSave={handleAdd}
+        initial={BLANK}
+        editMode={false}
+      />
+
+      {/* ── Edit modal ── */}
+      <SupplierModal
+        open={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        onSave={handleEdit}
+        initial={editTarget
+          ? {
+              name:          editTarget.name,
+              contactPerson: editTarget.contactPerson || '',
+              city:          editTarget.city,
+              state:         editTarget.state || '',
+              phone:         editTarget.contact || editTarget.phone || '',
+              altPhone:      editTarget.altPhone || '',
+              email:         editTarget.email || '',
+              gstin:         editTarget.gstin || '',
+              pan:           editTarget.pan || '',
+              website:       editTarget.website || '',
+              yarnTypes:     editTarget.yarnTypes || '',
+              leadDays:      editTarget.leadDays || '',
+              paymentTerms:  editTarget.paymentTerms || 'Net 30',
+              notes:         editTarget.notes || '',
+            }
+          : BLANK
+        }
+        editMode
+      />
+
+      {/* ── Delete confirm ── */}
+      <DeleteModal
+        open={!!deleteTarget}
+        supplier={deleteTarget}
+        onConfirm={handleDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

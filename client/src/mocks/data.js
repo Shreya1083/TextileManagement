@@ -259,3 +259,190 @@ export const mockEODTimeline = [
   { time: '22:00', event: 'Night shift started',              type: 'info',    icon: 'shift' },
   { time: '23:55', event: 'Day closed — 8,240 m total output', type: 'info',   icon: 'close' },
 ]
+
+// ─── Worker Dashboard Data ──────────────────────────────────────────────────
+
+// Per-worker detailed profiles
+export const mockWorkerProfiles = [
+  {
+    id: 'W-001', name: 'Mohan Kumar',    initials: 'MK',
+    role: 'Spinner Operator', dept: 'Production', machine: 'M-01',
+    phone: '+91 98100 11001', joined: '2021-03-15',
+    wage: 650, basis: 'daily', shift: 'Morning',
+    color: 'from-primary-500 to-violet-600',
+    // Monthly attendance (Sep 2026) — 'P','A','H','S'(Sunday/holiday)
+    attendance: [
+      'S','P','P','P','P','P','S', // week 1
+      'S','P','P','A','P','P','S', // week 2
+      'S','P','P','P','P','H','S', // week 3
+      'S','P','P','P','P','P','S', // week 4
+      'S','P','P','P',             // remaining days
+    ],
+    daysPresent: 24, daysAbsent: 1, halfDays: 1, holidays: 4,
+    overtimeHrs: 6, deductions: 0,
+    monthlyWage: { Oct: 15600, Sep: 16250, Aug: 15600, Jul: 16250, Jun: 15600, May: 14950 },
+    todayStatus: 'PRESENT', todayShift: 'Morning', todayOutput: 320,
+    ytdEarnings: 184950,
+  },
+  {
+    id: 'W-002', name: 'Suresh Patil',   initials: 'SP',
+    role: 'Spinner Operator', dept: 'Production', machine: 'M-02',
+    phone: '+91 98100 11002', joined: '2020-07-01',
+    wage: 650, basis: 'daily', shift: 'Morning',
+    color: 'from-cyan-500 to-blue-600',
+    attendance: [
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','A','S',
+      'S','P','P','P',
+    ],
+    daysPresent: 26, daysAbsent: 1, halfDays: 0, holidays: 4,
+    overtimeHrs: 9, deductions: 0,
+    monthlyWage: { Oct: 16900, Sep: 17550, Aug: 16900, Jul: 17550, Jun: 16900, May: 16250 },
+    todayStatus: 'PRESENT', todayShift: 'Morning', todayOutput: 290,
+    ytdEarnings: 200650,
+  },
+  {
+    id: 'W-003', name: 'Anil Verma',     initials: 'AV',
+    role: 'Weaver',           dept: 'Production', machine: 'M-03',
+    phone: '+91 98100 11003', joined: '2019-11-20',
+    wage: 700, basis: 'daily', shift: 'Morning',
+    color: 'from-emerald-500 to-teal-600',
+    attendance: [
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','A','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P',
+    ],
+    daysPresent: 25, daysAbsent: 1, halfDays: 0, holidays: 4,
+    overtimeHrs: 12, deductions: 0,
+    monthlyWage: { Oct: 17500, Sep: 18200, Aug: 17500, Jul: 18200, Jun: 17500, May: 16800 },
+    todayStatus: 'PRESENT', todayShift: 'Morning', todayOutput: 410,
+    ytdEarnings: 213700,
+  },
+  {
+    id: 'W-004', name: 'Neha Shah',      initials: 'NS',
+    role: 'Quality Inspector', dept: 'QC', machine: null,
+    phone: '+91 98100 11004', joined: '2022-01-10',
+    wage: 750, basis: 'daily', shift: 'Morning',
+    color: 'from-amber-500 to-orange-600',
+    attendance: [
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','H','P','S',
+      'S','P','P','P',
+    ],
+    daysPresent: 26, daysAbsent: 0, halfDays: 1, holidays: 4,
+    overtimeHrs: 4, deductions: 0,
+    monthlyWage: { Oct: 19500, Sep: 19875, Aug: 19500, Jul: 18750, Jun: 19500, May: 18750 },
+    todayStatus: 'PRESENT', todayShift: 'Morning', todayOutput: null,
+    ytdEarnings: 230625,
+  },
+  {
+    id: 'W-005', name: 'Priya Rao',      initials: 'PR',
+    role: 'Finisher',         dept: 'Production', machine: 'M-08',
+    phone: '+91 98100 11005', joined: '2023-04-05',
+    wage: 620, basis: 'daily', shift: 'Afternoon',
+    color: 'from-pink-500 to-rose-600',
+    attendance: [
+      'S','P','P','A','P','P','S',
+      'S','P','H','P','P','P','S',
+      'S','P','P','P','A','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P',
+    ],
+    daysPresent: 22, daysAbsent: 2, halfDays: 1, holidays: 4,
+    overtimeHrs: 2, deductions: 620,
+    monthlyWage: { Oct: 13640, Sep: 14260, Aug: 13640, Jul: 13020, Jun: 14260, May: 13640 },
+    todayStatus: 'PRESENT', todayShift: 'Afternoon', todayOutput: 190,
+    ytdEarnings: 156360,
+  },
+  {
+    id: 'W-006', name: 'Ravi Mehta',     initials: 'RM',
+    role: 'Weaver',           dept: 'Production', machine: 'M-05',
+    phone: '+91 98100 11006', joined: '2020-09-14',
+    wage: 700, basis: 'daily', shift: 'Morning',
+    color: 'from-violet-500 to-purple-600',
+    attendance: [
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P',
+    ],
+    daysPresent: 27, daysAbsent: 0, halfDays: 0, holidays: 4,
+    overtimeHrs: 8, deductions: 0,
+    monthlyWage: { Oct: 18900, Sep: 19600, Aug: 18900, Jul: 19600, Jun: 18900, May: 18200 },
+    todayStatus: 'PRESENT', todayShift: 'Morning', todayOutput: 380,
+    ytdEarnings: 218100,
+  },
+  {
+    id: 'W-007', name: 'Sanjay Tiwari',  initials: 'ST',
+    role: 'Dyer',             dept: 'Production', machine: 'M-06',
+    phone: '+91 98100 11007', joined: '2021-08-22',
+    wage: 680, basis: 'daily', shift: 'Afternoon',
+    color: 'from-teal-500 to-cyan-600',
+    attendance: [
+      'S','P','P','P','A','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','H','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','A',
+    ],
+    daysPresent: 23, daysAbsent: 2, halfDays: 1, holidays: 4,
+    overtimeHrs: 3, deductions: 680,
+    monthlyWage: { Oct: 15640, Sep: 16320, Aug: 15640, Jul: 15640, Jun: 14960, May: 15640 },
+    todayStatus: 'ABSENT', todayShift: 'Afternoon', todayOutput: 0,
+    ytdEarnings: 182840,
+  },
+  {
+    id: 'W-008', name: 'Deepak Singh',   initials: 'DS',
+    role: 'Store Keeper',     dept: 'Store', machine: null,
+    phone: '+91 98100 11008', joined: '2018-06-01',
+    wage: 720, basis: 'daily', shift: 'Morning',
+    color: 'from-indigo-500 to-blue-600',
+    attendance: [
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P','P','P','S',
+      'S','P','P','P',
+    ],
+    daysPresent: 26, daysAbsent: 0, halfDays: 0, holidays: 4,
+    overtimeHrs: 5, deductions: 0,
+    monthlyWage: { Oct: 18720, Sep: 19440, Aug: 18720, Jul: 19440, Jun: 18720, May: 18000 },
+    todayStatus: 'PRESENT', todayShift: 'Morning', todayOutput: null,
+    ytdEarnings: 220040,
+  },
+]
+
+// Attendance calendar legend
+export const ATTENDANCE_LABELS = {
+  P: { label: 'Present',   color: 'bg-emerald-500',  text: 'text-emerald-400', border: 'border-emerald-500/40' },
+  A: { label: 'Absent',    color: 'bg-red-500',      text: 'text-red-400',     border: 'border-red-500/40'     },
+  H: { label: 'Half Day',  color: 'bg-amber-500',    text: 'text-amber-400',   border: 'border-amber-500/40'   },
+  S: { label: 'Sunday/Holiday', color: 'bg-zinc-800', text: 'text-zinc-600',  border: 'border-zinc-700/30'    },
+}
+
+// Dept-wide monthly attendance summary
+export const mockDeptAttendanceSummary = [
+  { month: 'May', present: 178, absent: 14, halfDay: 8  },
+  { month: 'Jun', present: 182, absent: 10, halfDay: 8  },
+  { month: 'Jul', present: 185, absent: 8,  halfDay: 7  },
+  { month: 'Aug', present: 181, absent: 12, halfDay: 7  },
+  { month: 'Sep', present: 188, absent: 6,  halfDay: 6  },
+  { month: 'Oct', present: 44,  absent: 2,  halfDay: 0  },
+]
+
+// Monthly wages trend (department total)
+export const mockWageTrend = [
+  { month: 'May', total: 116180, overtime: 5200 },
+  { month: 'Jun', total: 119840, overtime: 7400 },
+  { month: 'Jul', total: 122360, overtime: 8100 },
+  { month: 'Aug', total: 118900, overtime: 6600 },
+  { month: 'Sep', total: 121195, overtime: 9200 },
+  { month: 'Oct', total: 118400, overtime: 4900 },
+]

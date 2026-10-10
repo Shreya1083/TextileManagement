@@ -3,12 +3,20 @@ import { Plus, Search, ArrowUpRight } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
+import { ExportMenu } from '../../components/ui/ExportMenu'
 import { mockOrders } from '../../mocks/data'
 import { formatDate } from '../../lib/utils'
-import { Link }       from 'react-router-dom'
+import { exportPDF, exportExcel } from '../../lib/exportUtils'
 import { cn } from '../../lib/utils'
 
 const STATUSES = ['ALL','CONFIRMED','IN_PRODUCTION','QUALITY_CHECK','READY_TO_SHIP','DISPATCHED']
+const COLUMNS  = ['Order', 'Buyer', 'Fabric', 'Colour', 'Qty (m)', 'Deadline', 'Progress %', 'Status']
+
+function buildRows(orders) {
+  return orders.map(o => [
+    o.id, o.buyer, o.fabric, o.colour, o.qty, formatDate(o.deadline), `${o.progress}%`, o.status,
+  ])
+}
 
 export default function OrdersPage() {
   const [search, setSearch]   = useState('')
@@ -22,12 +30,25 @@ export default function OrdersPage() {
     return matchS && (tab === 'ALL' || o.status === tab)
   })
 
+  const handleExportPDF = () => exportPDF({
+    title: 'Orders', subtitle: tab === 'ALL' ? 'All orders' : tab.replace(/_/g, ' '),
+    columns: COLUMNS, rows: buildRows(filtered), filename: 'Orders',
+  })
+  const handleExportExcel = () => exportExcel({
+    filename: 'Orders', sheetName: 'Orders', columns: COLUMNS, rows: buildRows(filtered),
+  })
+
   return (
     <div className="page-root">
       <PageHeader
         title="Orders"
         subtitle={`${mockOrders.length} total orders`}
-        actions={<button className="btn-primary btn-sm" onClick={() => setShowAdd(true)}><Plus size={14} />New Order</button>}
+        actions={
+          <div className="flex gap-2">
+            <ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
+            <button className="btn-primary btn-sm" onClick={() => setShowAdd(true)}><Plus size={14} />New Order</button>
+          </div>
+        }
       />
 
       <div className="flex flex-wrap items-center gap-3">
