@@ -10,26 +10,40 @@ const ATTENDANCE_METHODS = ['QR', 'MANUAL', 'BULK_UPLOAD'];
 export const createWorkerValidator = [
   body('employeeId').notEmpty().withMessage('Employee ID is required').trim(),
   body('name').notEmpty().withMessage('Name is required').trim(),
-  body('phone').optional().trim(),
-  body('email').optional().isEmail().withMessage('Invalid email format'),
+  body('phone').optional({ checkFalsy: true }).trim(),
+  body('email').optional({ checkFalsy: true }).isEmail().withMessage('Invalid email format'),
   body('role').notEmpty().withMessage('Role is required').trim(),
+  body('department').optional().trim(),
+  body('shift').optional().trim(),
   body('wageBasis')
     .notEmpty()
+    .withMessage('Wage basis is required')
+    .customSanitizer(v => typeof v === 'string' ? v.toUpperCase().replace('-', '_') : v)
     .isIn(['DAILY', 'PIECE_RATE'])
-    .withMessage('Invalid wage basis'),
+    .withMessage('Invalid wage basis: must be DAILY or PIECE_RATE'),
   body('dailyWage').optional().isInt({ min: 0 }),
   body('pieceRate').optional().isInt({ min: 0 }),
-  body('joinDate').isISO8601().withMessage('Valid join date is required'),
+  body('isActive').optional().isBoolean(),
+  body('joinDate')
+    .notEmpty()
+    .withMessage('Valid join date is required')
+    .isISO8601()
+    .withMessage('Valid join date (YYYY-MM-DD) is required'),
   validate,
 ];
 
 export const updateWorkerValidator = [
   param('id').notEmpty().withMessage('Worker ID is required'),
   body('name').optional().trim(),
-  body('phone').optional().trim(),
-  body('email').optional().isEmail(),
+  body('phone').optional({ checkFalsy: true }).trim(),
+  body('email').optional({ checkFalsy: true }).isEmail(),
   body('role').optional().trim(),
-  body('wageBasis').optional().isIn(['DAILY', 'PIECE_RATE']),
+  body('department').optional().trim(),
+  body('shift').optional().trim(),
+  body('wageBasis')
+    .optional()
+    .customSanitizer(v => typeof v === 'string' ? v.toUpperCase().replace('-', '_') : v)
+    .isIn(['DAILY', 'PIECE_RATE']),
   body('dailyWage').optional().isInt({ min: 0 }),
   body('pieceRate').optional().isInt({ min: 0 }),
   body('isActive').optional().isBoolean(),

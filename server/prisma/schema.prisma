@@ -704,6 +704,8 @@ model Worker {
   phone       String?
   email       String?
   role        String
+  department  String?  @default("Production")
+  shift       String?  @default("Morning")
   wageBasis   WageBasis
   dailyWage   Int?     // in paise
   pieceRate   Int?     // in paise

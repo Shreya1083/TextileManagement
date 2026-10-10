@@ -152,13 +152,13 @@ router.post(
 
 router.get(
   '/wages',
-  authorize('OWNER', 'ACCOUNTS'),
+  authorize('OWNER', 'SUPERVISOR', 'ACCOUNTS'),
   hrController.getAllWageRecords
 );
 
 router.get(
   '/wages/:id',
-  authorize('OWNER', 'ACCOUNTS'),
+  authorize('OWNER', 'SUPERVISOR', 'ACCOUNTS'),
   hrController.getWageRecordById
 );
 

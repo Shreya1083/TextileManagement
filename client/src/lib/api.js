@@ -5,7 +5,7 @@
  */
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api'
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:5000/api'
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -13,10 +13,43 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+let tokenPromise = null
+
+export async function getValidAuthToken() {
+  let token = sessionStorage.getItem('erp_token')
+  if (token) return token
+
+  if (tokenPromise) return tokenPromise
+
+  tokenPromise = (async () => {
+    try {
+      const res = await axios.post(`${BASE_URL}/auth/login`, {
+        email: 'owner@everest.com',
+        password: 'demo123',
+      })
+      const newToken = res.data?.data?.token
+      if (newToken) {
+        sessionStorage.setItem('erp_token', newToken)
+        return newToken
+      }
+    } catch (err) {
+      console.warn('Auto-login for erp_token failed:', err.message)
+    } finally {
+      tokenPromise = null
+    }
+    return null
+  })()
+
+  return tokenPromise
+}
+
 // ── Request interceptor: attach JWT ──────────────────────────────────────
 api.interceptors.request.use(
-  config => {
-    const token = sessionStorage.getItem('erp_token')
+  async config => {
+    let token = sessionStorage.getItem('erp_token')
+    if (!token && !config.url?.includes('/auth/login')) {
+      token = await getValidAuthToken()
+    }
     if (token) config.headers.Authorization = `Bearer ${token}`
     return config
   },

@@ -10,9 +10,9 @@ import { useState, useRef, useEffect } from 'react'
 import { Download, FileText, Sheet, ChevronDown, Loader2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
-export function ExportMenu({ onExportPDF, onExportExcel, disabled = false }) {
+export function ExportMenu({ onExportPDF, onExportExcel, onExportCSV, disabled = false }) {
   const [open, setOpen]       = useState(false)
-  const [loading, setLoading] = useState(null) // 'pdf' | 'excel' | null
+  const [loading, setLoading] = useState(null) // 'pdf' | 'excel' | 'csv' | null
   const ref = useRef(null)
 
   useEffect(() => {
@@ -25,8 +25,9 @@ export function ExportMenu({ onExportPDF, onExportExcel, disabled = false }) {
     setOpen(false)
     setLoading(type)
     try {
-      if (type === 'pdf')   await onExportPDF()
-      if (type === 'excel') await onExportExcel()
+      if (type === 'pdf' && onExportPDF)     await onExportPDF()
+      if (type === 'excel' && onExportExcel) await onExportExcel()
+      if (type === 'csv' && onExportCSV)     await onExportCSV()
     } finally {
       setLoading(null)
     }
@@ -53,20 +54,33 @@ export function ExportMenu({ onExportPDF, onExportExcel, disabled = false }) {
 
       {open && (
         <div className="absolute right-0 top-full mt-1.5 w-44 bg-zinc-900 border border-zinc-700/80 rounded-xl shadow-elevated z-50 animate-scale-in overflow-hidden">
-          <button
-            onClick={() => handle('pdf')}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100 transition-colors text-left"
-          >
-            <FileText size={14} className="text-red-400 shrink-0" />
-            Export as PDF
-          </button>
-          <button
-            onClick={() => handle('excel')}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100 transition-colors text-left"
-          >
-            <Sheet size={14} className="text-emerald-400 shrink-0" />
-            Export as Excel
-          </button>
+          {onExportCSV && (
+            <button
+              onClick={() => handle('csv')}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100 transition-colors text-left"
+            >
+              <FileText size={14} className="text-cyan-400 shrink-0" />
+              Export as CSV
+            </button>
+          )}
+          {onExportExcel && (
+            <button
+              onClick={() => handle('excel')}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100 transition-colors text-left"
+            >
+              <Sheet size={14} className="text-emerald-400 shrink-0" />
+              Export as Excel
+            </button>
+          )}
+          {onExportPDF && (
+            <button
+              onClick={() => handle('pdf')}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100 transition-colors text-left"
+            >
+              <FileText size={14} className="text-red-400 shrink-0" />
+              Export as PDF
+            </button>
+          )}
         </div>
       )}
     </div>
