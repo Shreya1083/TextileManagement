@@ -1,14 +1,21 @@
 import React, { createContext, useContext, useState } from 'react'
 
+// TODO (backend): Replace client-side credential matching with a real API call before production use.
+// Example: POST /api/auth/login with { email, password } → JWT token returned and stored securely.
+// The DEMO_USERS array and its plaintext passwords must be removed entirely in production.
+
+/* eslint-disable react-refresh/only-export-components */
+
 const AuthContext = createContext(null)
 
 export const DEMO_USERS = [
   // ── Management / Office ──────────────────────────────────────────────────
-  { email: 'owner@everest.com',      password: 'demo123', role: 'owner',      name: 'Rajesh Sharma',  dept: 'Management', workerId: null  },
-  { email: 'store@everest.com',      password: 'demo123', role: 'store',      name: 'Kamla Devi',     dept: 'Store',      workerId: null  },
-  { email: 'supervisor@everest.com', password: 'demo123', role: 'supervisor', name: 'Arvind Kumar',   dept: 'Production', workerId: null  },
-  { email: 'inspector@everest.com',  password: 'demo123', role: 'inspector',  name: 'Neha Shah',      dept: 'QC',         workerId: null  },
-  { email: 'accounts@everest.com',   password: 'demo123', role: 'accounts',   name: 'Pradeep Gupta',  dept: 'Accounts',   workerId: null  },
+  { email: 'owner@everest.com',      password: 'demo123', role: 'owner',      name: 'Rajesh Sharma',  dept: 'Management', workerId: null    },
+  { email: 'store@everest.com',      password: 'demo123', role: 'store',      name: 'Kamla Devi',     dept: 'Store',      workerId: null    },
+  { email: 'supervisor@everest.com', password: 'demo123', role: 'supervisor', name: 'Arvind Kumar',   dept: 'Production', workerId: null    },
+  { email: 'inspector@everest.com',  password: 'demo123', role: 'inspector',  name: 'Neha Shah',      dept: 'QC',         workerId: null    },
+  { email: 'accounts@everest.com',   password: 'demo123', role: 'accounts',   name: 'Pradeep Gupta',  dept: 'Accounts',   workerId: null    },
+  { email: 'buyer@everest.com',      password: 'demo123', role: 'buyer',      name: 'Anita Desai',    dept: 'Buyer',      workerId: null    },
   // ── Workers (floor employees) ────────────────────────────────────────────
   { email: 'mohan@everest.com',      password: 'demo123', role: 'worker',     name: 'Mohan Kumar',    dept: 'Production', workerId: 'W-001' },
   { email: 'suresh@everest.com',     password: 'demo123', role: 'worker',     name: 'Suresh Patil',   dept: 'Production', workerId: 'W-002' },
@@ -27,6 +34,7 @@ export const ROLE_HOME = {
   inspector:  '/quality/queue',
   store:      '/inventory/stock',
   accounts:   '/orders',
+  buyer:      '/orders',
   worker:     '/worker/my-dashboard',
 }
 
@@ -37,6 +45,7 @@ export const ROLE_LABELS = {
   supervisor: 'Production Supervisor',
   inspector:  'Quality Inspector',
   accounts:   'Office / Accounts',
+  buyer:      'Buyer',
   worker:     'Floor Worker',
 }
 

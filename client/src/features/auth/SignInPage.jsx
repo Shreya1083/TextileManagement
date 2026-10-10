@@ -6,6 +6,11 @@ import { ROLE_HOME } from '../../context/AuthContext'
 import { Eye, EyeOff, Loader2, ArrowRight, Layers } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
+// TODO (backend): This page uses client-side demo authentication only.
+// Before production: remove the demo credentials hint block, connect onSubmit to
+// a real API endpoint (e.g. POST /api/auth/login), and verify credentials server-side.
+// The backend must validate email, password, and assigned role before issuing a session token.
+
 const FEATURES = [
   { icon: '🧵', title: 'End-to-End Traceability',  desc: 'Track every yarn lot to finished fabric roll and dispatch' },
   { icon: '⚙️', title: 'Live Machine Monitoring',  desc: 'Real-time status for every machine on the production floor' },
@@ -27,17 +32,13 @@ export default function SignInPage() {
     formState: { errors },
   } = useForm({ defaultValues: { email: '', password: '', role: '' } })
 
-  const onSubmit = async ({ email, password, role }) => {
+  const onSubmit = async ({ email, password }) => {
     setAuthError('')
     setLoading(true)
     await new Promise(r => setTimeout(r, 600))
     const res = login(email, password)
     setLoading(false)
     if (res.ok) {
-      if (res.role !== role) {
-        setAuthError('Role does not match this account. Please select the correct role.')
-        return
-      }
       navigate(ROLE_HOME[res.role] || '/dashboard')
     } else {
       setAuthError(res.error || 'Authentication failed. Check your credentials.')
@@ -240,6 +241,7 @@ export default function SignInPage() {
                 { email: 'supervisor@everest.com',  role: 'Production Supervisor' },
                 { email: 'inspector@everest.com',   role: 'Quality Inspector' },
                 { email: 'accounts@everest.com',    role: 'Office / Accounts' },
+                { email: 'buyer@everest.com',       role: 'Buyer' },
               ].map(({ email, role }) => (
                 <div key={email} className="flex items-center justify-between gap-2">
                   <code className="text-2xs text-zinc-600 font-mono">{email}</code>
