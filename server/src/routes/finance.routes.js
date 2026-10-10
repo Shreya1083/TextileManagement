@@ -58,7 +58,7 @@ router.get('/reports/machine-output', authorize('OWNER', 'ACCOUNTS', 'SUPERVISOR
 router.get('/reports/monthly-pnl',  authorize('OWNER', 'ACCOUNTS'), financeValidator.profitLossValidator, validate, asyncHandler(financeController.getProfitLoss));
 router.get('/reports/profit-loss',  authorize('OWNER', 'ACCOUNTS'), financeValidator.profitLossValidator, validate, asyncHandler(financeController.getProfitLoss));
 
-// Owner Dashboard
-router.get('/dashboard/owner', authorize('OWNER'), financeValidator.ownerDashboardValidator, validate, asyncHandler(financeController.getOwnerDashboard));
+// Owner Dashboard  — accepts ?from=YYYY-MM-DD&to=YYYY-MM-DD  (also legacy ?startDate/endDate)
+router.get('/dashboard/owner', authorize('OWNER'), asyncHandler(financeController.getOwnerDashboard));
 
 export default router;

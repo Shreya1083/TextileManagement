@@ -115,11 +115,27 @@ export const profitLossValidator = [
     .isInt({ min: 1, max: 12 }).withMessage('Month must be between 1 and 12')
 ];
 
+// ─── Owner Dashboard ─────────────────────────────────────────────────────────
+// Max range: 366 days; from <= to; defaults to current calendar month.
+const MAX_DASHBOARD_DAYS = 366;
+
 export const ownerDashboardValidator = [
-  query('startDate')
+  query('from')
     .optional()
-    .isISO8601().withMessage('Invalid start date format'),
-  query('endDate')
+    .isISO8601({ strict: true }).withMessage('from must be a valid ISO 8601 date (YYYY-MM-DD)'),
+  query('to')
     .optional()
-    .isISO8601().withMessage('Invalid end date format')
+    .isISO8601({ strict: true }).withMessage('to must be a valid ISO 8601 date (YYYY-MM-DD)')
+    .custom((to, { req }) => {
+      const from = req.query.from;
+      if (!from || !to) return true; // defaults will be applied in service
+      const fromDate = new Date(from);
+      const toDate   = new Date(to);
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) return true;
+      if (fromDate > toDate) throw new Error('to must be on or after from');
+      const diffDays = (toDate - fromDate) / (1000 * 60 * 60 * 24);
+      if (diffDays > MAX_DASHBOARD_DAYS)
+        throw new Error(`Date range must not exceed ${MAX_DASHBOARD_DAYS} days`);
+      return true;
+    }),
 ];

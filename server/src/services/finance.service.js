@@ -341,133 +341,221 @@ export const getMonthlyPnL = async (month, year) => {
 };
 
 // ============================================
-// OWNER DASHBOARD
+// OWNER DASHBOARD  (GET /api/finance/dashboard/owner?from=YYYY-MM-DD&to=YYYY-MM-DD)
+// Returns all values in integer paise; display layer converts to rupees.
 // ============================================
 
-export const getOwnerDashboard = async () => {
-  const today = new Date();
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const startOfYear = new Date(today.getFullYear(), 0, 1);
+export const getOwnerDashboard = async ({ from, to } = {}) => {
+  // ── Resolve date range (default = current calendar month) ──────────────────
+  const now   = new Date();
+  const start = from
+    ? new Date(from + 'T00:00:00.000Z')
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const end   = to
+    ? new Date(to   + 'T23:59:59.999Z')
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
-  // Get current month revenue
-  const monthInvoices = await prisma.invoice.findMany({
-    where: {
-      invoiceDate: { gte: startOfMonth },
+  // Re-check in service layer: from <= to, max 366 days (defence-in-depth)
+  if (start > end) {
+    const err = new Error('from must be on or before to'); err.status = 400; throw err;
+  }
+  const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+  if (diffDays > 366) {
+    const err = new Error('Date range must not exceed 366 days'); err.status = 400; throw err;
+  }
+
+  // ── 1. Revenue, paid amount, outstanding receivables ─────────────────────
+  const invoices = await prisma.invoice.findMany({
+    where: { invoiceDate: { gte: start, lte: end } },
+    select: {
+      totalAmount: true,
+      paidAmount:  true,
+      status:      true,
+      dueDate:     true,
     },
   });
 
-  const monthRevenue = monthInvoices.reduce((sum, inv) => sum + inv.paidAmount, 0);
+  const revenue       = invoices.reduce((s, i) => s + i.totalAmount,                    0);
+  const totalPaid     = invoices.reduce((s, i) => s + i.paidAmount,                     0);
+  const receivables   = invoices.reduce((s, i) => s + (i.totalAmount - i.paidAmount),   0);
+  const overdueAmount = invoices
+    .filter(i => ['PENDING', 'PARTIALLY_PAID'].includes(i.status) && i.dueDate && new Date(i.dueDate) < now)
+    .reduce((s, i) => s + (i.totalAmount - i.paidAmount), 0);
 
-  // Get current month costs (simplified)
-  const monthWages = await prisma.wageRecord.findMany({
-    where: {
-      month: today.getMonth() + 1,
-      year: today.getFullYear(),
-    },
+  // ── 2. Total cost = wages + overhead expenses in range ────────────────────
+  const wageMonth  = start.getUTCMonth() + 1;
+  const wageYear   = start.getUTCFullYear();
+
+  // Wages: use month/year fields on WageRecord
+  const wageRecords = await prisma.wageRecord.findMany({
+    where: { month: wageMonth, year: wageYear },
+    select: { netWage: true },
   });
+  const wagesPaid = wageRecords.reduce((s, w) => s + w.netWage, 0);
 
-  const monthLaborCost = monthWages.reduce((sum, w) => sum + w.grossWage, 0);
-
-  const monthExpenses = await prisma.expense.findMany({
-    where: {
-      expenseDate: { gte: startOfMonth },
-    },
+  const expenses = await prisma.expense.findMany({
+    where: { expenseDate: { gte: start, lte: end } },
+    select: { amount: true },
   });
+  const overheadExpenses = expenses.reduce((s, e) => s + e.amount, 0);
 
-  const monthExpenseTotal = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalCost = wagesPaid + overheadExpenses;
+  const profit    = revenue - totalCost;
 
-  const monthCost = monthLaborCost + monthExpenseTotal;
-  const monthProfit = monthRevenue - monthCost;
-
-  // Get outstanding receivables
-  const allInvoices = await prisma.invoice.findMany({
-    where: {
-      status: { in: ['PENDING', 'PARTIALLY_PAID'] },
-    },
-  });
-
-  const totalReceivables = allInvoices.reduce(
-    (sum, inv) => sum + (inv.totalAmount - inv.paidAmount),
-    0
-  );
-
-  // Get low stock count
+  // ── 3. Low-stock count ────────────────────────────────────────────────────
   const stockBatches = await prisma.stockBatch.findMany({
-    include: {
-      yarnType: true,
+    select: {
+      currentQuantity:  true,
+      reservedQuantity: true,
+      yarnType: { select: { reorderLevel: true } },
     },
   });
-
-  const lowStockItems = stockBatches.filter((batch) => {
-    const available = batch.currentQuantity - batch.reservedQuantity;
-    return available < batch.yarnType.reorderLevel;
+  const lowStockCount = stockBatches.filter(b => {
+    const available = b.currentQuantity - b.reservedQuantity;
+    return available < b.yarnType.reorderLevel;
   }).length;
 
-  // Get delayed orders
-  const delayedOrders = await prisma.order.count({
+  // ── 4. Active orders count ────────────────────────────────────────────────
+  const activeOrdersCount = await prisma.order.count({
+    where: { status: { in: ['IN_PRODUCTION', 'QUALITY_CHECK', 'READY_TO_SHIP'] } },
+  });
+
+  // ── 5. Delayed orders (past deadline, not closed/dispatched) — cap 10 ─────
+  const delayedRaw = await prisma.order.findMany({
     where: {
-      deadline: { lt: today },
-      status: { notIn: ['DISPATCHED', 'CLOSED'] },
+      deadline: { lt: now },
+      status:   { notIn: ['DISPATCHED', 'CLOSED'] },
+    },
+    select: {
+      id:          true,
+      orderNumber: true,
+      deadline:    true,
+      status:      true,
+      buyer:       { select: { name: true } },
+    },
+    orderBy: { deadline: 'asc' },
+    take: 10,
+  });
+
+  const delayedOrders = delayedRaw.map(o => ({
+    id:          o.id,
+    orderNumber: o.orderNumber,
+    buyer:       o.buyer.name,
+    deadline:    o.deadline.toISOString(),
+    status:      o.status,
+    daysLate:    Math.floor((now - new Date(o.deadline)) / (1000 * 60 * 60 * 24)),
+  }));
+
+  const delayedOrdersCount = await prisma.order.count({
+    where: {
+      deadline: { lt: now },
+      status:   { notIn: ['DISPATCHED', 'CLOSED'] },
     },
   });
 
-  // Get machine output ranking (top 5)
-  const machineProduction = await prisma.productionLog.groupBy({
-    by: ['machineId'],
-    _sum: {
-      outputQuantity: true,
-    },
-    orderBy: {
-      _sum: {
-        outputQuantity: 'desc',
-      },
-    },
-    take: 5,
-  });
-
-  const machineIds = machineProduction.map((m) => m.machineId);
+  // ── 6. Machine status counts ──────────────────────────────────────────────
   const machines = await prisma.machine.findMany({
-    where: {
-      id: { in: machineIds },
-    },
+    select: { status: true },
+  });
+  const machineStats = {
+    total:     machines.length,
+    running:   machines.filter(m => m.status === 'RUNNING').length,
+    idle:      machines.filter(m => m.status === 'IDLE').length,
+    breakdown: machines.filter(m => m.status === 'BREAKDOWN').length,
+    maintenance: machines.filter(m => m.status === 'MAINTENANCE').length,
+  };
+
+  // ── 7. Machine output ranking (top 10, sorted desc) ───────────────────────
+  const machineOutputRaw = await prisma.productionLog.groupBy({
+    by:      ['machineId'],
+    where:   { date: { gte: start, lte: end } },
+    _sum:    { outputQuantity: true },
+    orderBy: { _sum: { outputQuantity: 'desc' } },
+    take:    10,
   });
 
-  const machineOutputRanking = machineProduction.map((m) => {
-    const machine = machines.find((mach) => mach.id === m.machineId);
+  const machineIds = machineOutputRaw.map(m => m.machineId);
+  const machineDetails = await prisma.machine.findMany({
+    where:  { id: { in: machineIds } },
+    select: { id: true, name: true, machineCode: true, stage: true },
+  });
+
+  const machineOutputRanking = machineOutputRaw.map((m, idx) => {
+    const mach = machineDetails.find(d => d.id === m.machineId);
     return {
-      machineName: machine?.name || 'Unknown',
-      totalOutput: m._sum.outputQuantity || 0,
+      rank:        idx + 1,
+      machineId:   m.machineId,
+      machineName: mach?.name       ?? 'Unknown',
+      machineCode: mach?.machineCode ?? '',
+      stage:       mach?.stage      ?? '',
+      totalMetres: m._sum.outputQuantity ?? 0,
     };
   });
 
-  // Get active orders count
-  const activeOrders = await prisma.order.count({
-    where: {
-      status: { in: ['IN_PRODUCTION', 'QUALITY_CHECK', 'READY_TO_SHIP'] },
-    },
+  // ── 8. Production trend — daily output for the date range ─────────────────
+  const productionLogs = await prisma.productionLog.findMany({
+    where:  { date: { gte: start, lte: end } },
+    select: { date: true, outputQuantity: true },
+    orderBy: { date: 'asc' },
   });
 
-  // Get QC pending count
-  const qcPending = await prisma.fabricRoll.count({
-    where: {
-      status: 'AWAITING_QC',
-    },
+  // Aggregate by date (ISO date string YYYY-MM-DD)
+  const trendMap = new Map();
+  for (const log of productionLogs) {
+    const key = log.date.toISOString().slice(0, 10);
+    trendMap.set(key, (trendMap.get(key) ?? 0) + log.outputQuantity);
+  }
+  const productionTrend = Array.from(trendMap.entries()).map(([date, metres]) => ({
+    date,
+    metres,
+  }));
+
+  // ── 9. Quality metrics (rolls in range by production date) ────────────────
+  const rolls = await prisma.fabricRoll.findMany({
+    where:  { productionDate: { gte: start, lte: end } },
+    select: { status: true },
   });
 
+  const totalRolls   = rolls.length;
+  const passedRolls  = rolls.filter(r => ['PASSED','FINISHED_STOCK','DISPATCHED'].includes(r.status)).length;
+  const reworkRolls  = rolls.filter(r => r.status === 'REWORK').length;
+  const rejectedRolls= rolls.filter(r => r.status === 'REJECTED').length;
+  const passRate     = totalRolls > 0 ? Math.round((passedRolls / totalRolls) * 1000) / 10 : 0;
+
+  // ── 10. QC pending ────────────────────────────────────────────────────────
+  const qcPending = await prisma.fabricRoll.count({ where: { status: 'AWAITING_QC' } });
+
+  // ── Assemble response ─────────────────────────────────────────────────────
   return {
-    summary: {
-      monthRevenue,
-      monthCost,
-      monthProfit,
-      totalReceivables,
-      activeOrders,
-      lowStockItems,
-      delayedOrders,
+    period: {
+      from:  start.toISOString().slice(0, 10),
+      to:    end.toISOString().slice(0, 10),
+    },
+    kpis: {
+      // All money values are integer paise — display layer converts to ₹
+      revenue,
+      totalCost,
+      profit,
+      wagesPaid,
+      overheadExpenses,
+      receivables,
+      overdueAmount,
+      activeOrdersCount,
+      delayedOrdersCount,
+      lowStockCount,
       qcPending,
     },
-    machineOutputRanking,
-    recentMetrics: {
-      profitMargin: monthRevenue > 0 ? ((monthProfit / monthRevenue) * 100).toFixed(2) : 0,
+    quality: {
+      totalRolls,
+      passedRolls,
+      reworkRolls,
+      rejectedRolls,
+      passRate,        // e.g. 94.2 (percent)
     },
+    machines: machineStats,
+    machineOutputRanking,
+    productionTrend,
+    delayedOrders,
+    generatedAt: new Date().toISOString(),
   };
 };

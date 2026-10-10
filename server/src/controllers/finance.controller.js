@@ -111,8 +111,10 @@ export const getProfitLoss = async (req, res, next) => {
 // Owner Dashboard
 export const getOwnerDashboard = async (req, res, next) => {
   try {
-    const { startDate, endDate } = req.query;
-    const dashboard = await financeService.getOwnerDashboard({ startDate, endDate });
+    // Accept both ?from=&to= (new spec) and legacy ?startDate=&endDate=
+    const from = req.query.from || req.query.startDate;
+    const to   = req.query.to   || req.query.endDate;
+    const dashboard = await financeService.getOwnerDashboard({ from, to });
     return successResponse(res, dashboard, 'Owner dashboard data retrieved successfully');
   } catch (error) {
     next(error);
