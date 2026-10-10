@@ -40,9 +40,10 @@ import DispatchPage      from './features/dispatch/DispatchPage'
 import InvoicesPage      from './features/dispatch/InvoicesPage'
 
 // HR
-import WorkersPage    from './features/hr/WorkersPage'
-import AttendancePage from './features/hr/AttendancePage'
-import WagesPage      from './features/hr/WagesPage'
+import WorkersPage     from './features/hr/WorkersPage'
+import AttendancePage  from './features/hr/AttendancePage'
+import WagesPage       from './features/hr/WagesPage'
+import WorkerDashboard from './features/hr/WorkerDashboard'
 
 // Finance
 import CostingPage from './features/finance/CostingPage'
@@ -105,6 +106,7 @@ export default function App() {
 
             {/* HR */}
             <Route path="/hr/workers"    element={<WorkersPage />} />
+            <Route path="/hr/dashboard"  element={<WorkerDashboard />} />
             <Route path="/hr/attendance" element={<AttendancePage />} />
             <Route path="/hr/wages"      element={<WagesPage />} />
 

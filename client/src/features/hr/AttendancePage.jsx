@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle2, XCircle, Clock, ScanLine, Save } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { useAuth }    from '../../context/AuthContext'
 import { mockWorkers } from '../../mocks/data'
 import { cn } from '../../lib/utils'
 
@@ -12,6 +13,7 @@ const STATUS_CFG = {
 const CYCLE = ['PRESENT', 'ABSENT', 'HALF_DAY']
 
 export default function AttendancePage() {
+  const { user } = useAuth()
   const [shift, setShift] = useState('Morning')
   const [att, setAtt] = useState(Object.fromEntries(mockWorkers.map(w => [w.id, 'PRESENT'])))
   const cycle = id => setAtt(p => ({ ...p, [id]: CYCLE[(CYCLE.indexOf(p[id]) + 1) % CYCLE.length] }))
