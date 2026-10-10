@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth }     from '../../context/AuthContext'
-import { DEMO_USERS, ROLE_HOME, ROLE_LABELS } from '../../context/AuthContext'
-import { Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown } from 'lucide-react'
+import { DEMO_USERS, USER_GROUPS, ROLE_HOME, ROLE_LABELS } from '../../context/AuthContext'
+import { Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown, Users, Briefcase } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const ROLE_COLORS = {
@@ -11,6 +11,26 @@ const ROLE_COLORS = {
   inspector:  'from-emerald-500 to-teal-600',
   store:      'from-cyan-500 to-blue-600',
   accounts:   'from-pink-500 to-rose-600',
+  worker:     'from-zinc-500 to-zinc-700',
+}
+
+// Give each worker a distinct colour to distinguish them
+const WORKER_COLORS = [
+  'from-primary-500 to-violet-600',
+  'from-cyan-500 to-blue-600',
+  'from-emerald-500 to-teal-600',
+  'from-amber-500 to-orange-600',
+  'from-pink-500 to-rose-600',
+  'from-violet-500 to-purple-600',
+  'from-teal-500 to-cyan-600',
+  'from-indigo-500 to-blue-600',
+]
+
+function getUserColor(user) {
+  if (user.role !== 'worker') return ROLE_COLORS[user.role] || 'from-zinc-500 to-zinc-700'
+  // consistent colour by workerId
+  const idx = parseInt((user.workerId || 'W-000').replace('W-00', '').replace('W-0', '')) - 1
+  return WORKER_COLORS[idx % WORKER_COLORS.length]
 }
 
 const FEATURES = [
@@ -23,21 +43,31 @@ const FEATURES = [
 export default function LoginPage() {
   const { login }   = useAuth()
   const navigate    = useNavigate()
+  const dropdownRef = useRef(null)
 
-  // Default to Owner role
-  const [selectedRole, setSelectedRole] = useState('owner')
-  const [password, setPassword]         = useState('demo123')
-  const [showPw, setShowPw]             = useState(false)
-  const [showRoleMenu, setShowRoleMenu] = useState(false)
-  const [error, setError]               = useState('')
-  const [loading, setLoading]           = useState(false)
+  const [selectedEmail, setSelectedEmail] = useState('owner@everest.com')
+  const [password, setPassword]           = useState('demo123')
+  const [showPw, setShowPw]               = useState(false)
+  const [showDropdown, setShowDropdown]   = useState(false)
+  const [error, setError]                 = useState('')
+  const [loading, setLoading]             = useState(false)
 
-  const currentUser = DEMO_USERS.find(u => u.role === selectedRole)
-  const email       = currentUser?.email ?? ''
+  const currentUser = DEMO_USERS.find(u => u.email === selectedEmail) || DEMO_USERS[0]
 
-  const handleRoleSelect = (role) => {
-    setSelectedRole(role)
-    setShowRoleMenu(false)
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleSelect = (email) => {
+    setSelectedEmail(email)
+    setShowDropdown(false)
     setError('')
   }
 
@@ -46,7 +76,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     await new Promise(r => setTimeout(r, 600))
-    const res = login(email, password)
+    const res = login(currentUser.email, password)
     setLoading(false)
     if (res.ok) {
       navigate(ROLE_HOME[res.role] || '/dashboard')
@@ -54,6 +84,8 @@ export default function LoginPage() {
       setError(res.error)
     }
   }
+
+  const userColor = getUserColor(currentUser)
 
   return (
     <div className="min-h-screen flex bg-zinc-950">
@@ -76,7 +108,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Hero text */}
+        {/* Hero */}
         <div className="relative">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-500/15 border border-primary-500/25 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-primary-400 animate-pulse" />
@@ -102,12 +134,12 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Bottom stats */}
+        {/* Stats */}
         <div className="relative flex items-center gap-8">
           {[
-            { value: '12,400+', label: 'Rolls tracked'   },
-            { value: '94.2%',   label: 'Machine uptime'  },
-            { value: '₹18.4L',  label: 'Sep revenue'     },
+            { value: '12,400+', label: 'Rolls tracked'  },
+            { value: '94.2%',   label: 'Machine uptime' },
+            { value: '₹18.4L',  label: 'Sep revenue'    },
           ].map(s => (
             <div key={s.label}>
               <p className="text-xl font-bold text-zinc-50">{s.value}</p>
@@ -118,8 +150,8 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right sign-in panel ── */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-[400px]">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
+        <div className="w-full max-w-[420px]">
 
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-8">
@@ -131,86 +163,116 @@ export default function LoginPage() {
 
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-zinc-50 tracking-tight">Sign in</h2>
-            <p className="text-sm text-zinc-500 mt-1">Select your role and enter your password to continue</p>
+            <p className="text-sm text-zinc-500 mt-1">Select your account and enter your password</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* ── Role selector dropdown ── */}
-            <div>
+            {/* ── User / Role dropdown ── */}
+            <div ref={dropdownRef}>
               <label className="label">Sign in as</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowRoleMenu(v => !v)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all duration-150',
-                    'bg-zinc-900 hover:border-zinc-600',
-                    showRoleMenu
-                      ? 'border-primary-500/60 ring-2 ring-primary-500/20'
-                      : 'border-zinc-700/80',
-                  )}
-                >
-                  <div className={cn(
-                    'w-8 h-8 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white font-bold text-sm',
-                    ROLE_COLORS[selectedRole],
-                  )}>
-                    {currentUser?.name?.charAt(0) ?? 'U'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-zinc-100 leading-tight">{currentUser?.name}</p>
-                    <p className="text-xs text-zinc-500 leading-tight mt-0.5">{ROLE_LABELS[selectedRole]}</p>
-                  </div>
-                  <ChevronDown
-                    size={16}
-                    className={cn('text-zinc-500 transition-transform duration-150 shrink-0', showRoleMenu && 'rotate-180')}
-                  />
-                </button>
-
-                {/* Dropdown menu */}
-                {showRoleMenu && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-scale-in">
-                    <p className="px-4 py-2.5 text-2xs font-bold text-zinc-600 uppercase tracking-widest border-b border-zinc-800/80">
-                      Select Role
-                    </p>
-                    {DEMO_USERS.map(u => (
-                      <button
-                        key={u.role}
-                        type="button"
-                        onClick={() => handleRoleSelect(u.role)}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-100',
-                          'hover:bg-zinc-800/60 border-b border-zinc-800/40 last:border-0',
-                          selectedRole === u.role && 'bg-primary-500/10',
-                        )}
-                      >
-                        <div className={cn(
-                          'w-8 h-8 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white font-bold text-sm',
-                          ROLE_COLORS[u.role],
-                        )}>
-                          {u.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-zinc-200 leading-tight">{u.name}</p>
-                          <p className="text-xs text-zinc-500 leading-tight mt-0.5">{ROLE_LABELS[u.role]}</p>
-                        </div>
-                        {selectedRole === u.role && (
-                          <span className="w-2 h-2 rounded-full bg-primary-400 shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
+              <button
+                type="button"
+                onClick={() => setShowDropdown(v => !v)}
+                className={cn(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all duration-150',
+                  'bg-zinc-900 hover:border-zinc-600',
+                  showDropdown
+                    ? 'border-primary-500/60 ring-2 ring-primary-500/20'
+                    : 'border-zinc-700/80',
                 )}
-              </div>
+              >
+                {/* Avatar */}
+                <div className={cn(
+                  'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white font-bold text-sm',
+                  userColor,
+                )}>
+                  {currentUser?.name?.charAt(0) ?? 'U'}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-zinc-100 leading-tight">{currentUser?.name}</p>
+                  <p className="text-xs text-zinc-500 leading-tight mt-0.5">
+                    {ROLE_LABELS[currentUser?.role]}
+                    {currentUser?.workerId && (
+                      <span className="ml-1.5 font-mono text-zinc-600">· {currentUser.workerId}</span>
+                    )}
+                  </p>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={cn('text-zinc-500 transition-transform duration-200 shrink-0', showDropdown && 'rotate-180')}
+                />
+              </button>
+
+              {/* Dropdown */}
+              {showDropdown && (
+                <div className="mt-1.5 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-scale-in max-h-80 overflow-y-auto scrollbar-thin">
+                  {USER_GROUPS.map((group, gi) => (
+                    <div key={group.group}>
+                      {/* Group header */}
+                      <div className={cn(
+                        'flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800/80',
+                        gi > 0 && 'border-t border-zinc-700/40',
+                        'bg-zinc-800/40',
+                      )}>
+                        {group.group === 'Floor Workers'
+                          ? <Users size={11} className="text-zinc-500" />
+                          : <Briefcase size={11} className="text-zinc-500" />
+                        }
+                        <p className="text-2xs font-bold text-zinc-500 uppercase tracking-widest">{group.group}</p>
+                        <span className="ml-auto text-2xs text-zinc-700">{group.users.length} accounts</span>
+                      </div>
+
+                      {/* Users in group */}
+                      {group.users.map(u => {
+                        const uColor = getUserColor(u)
+                        const isSelected = u.email === selectedEmail
+                        return (
+                          <button
+                            key={u.email}
+                            type="button"
+                            onClick={() => handleSelect(u.email)}
+                            className={cn(
+                              'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-100',
+                              'hover:bg-zinc-800/60 border-b border-zinc-800/30 last:border-0',
+                              isSelected && 'bg-primary-500/10',
+                            )}
+                          >
+                            <div className={cn(
+                              'w-8 h-8 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white font-bold text-xs',
+                              uColor,
+                            )}>
+                              {u.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-zinc-200 leading-tight">{u.name}</p>
+                              <p className="text-xs text-zinc-500 leading-tight">
+                                {ROLE_LABELS[u.role]}
+                                {u.workerId && (
+                                  <span className="ml-1.5 font-mono text-zinc-600">{u.workerId}</span>
+                                )}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <span className="w-2 h-2 rounded-full bg-primary-400 shrink-0" />
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Email (read-only, derived from role) */}
+            {/* Email — read only, derived from selection */}
             <div>
               <label className="label">Email address</label>
               <input
                 type="email"
-                className="input opacity-60 cursor-default"
-                value={email}
+                className="input opacity-60 cursor-default select-none"
+                value={currentUser?.email ?? ''}
                 readOnly
                 tabIndex={-1}
               />
@@ -237,7 +299,7 @@ export default function LoginPage() {
                 </button>
               </div>
               <p className="text-2xs text-zinc-600 mt-1.5">
-                Demo password for all accounts: <code className="text-primary-400 font-mono">demo123</code>
+                All demo accounts use password <code className="text-primary-400 font-mono">demo123</code>
               </p>
             </div>
 
@@ -260,29 +322,30 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Role permissions note */}
+          {/* Access summary table */}
           <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/80 rounded-2xl">
-            <p className="text-2xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Role Access</p>
-            <div className="grid grid-cols-1 gap-1">
+            <p className="text-2xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Access Summary</p>
+            <div className="space-y-1.5">
               {[
-                { role: 'owner',      access: 'Full access — all modules' },
-                { role: 'supervisor', access: 'Floor, machines, production' },
-                { role: 'inspector',  access: 'Quality control & defects' },
-                { role: 'store',      access: 'Inventory & dispatch' },
-                { role: 'accounts',   access: 'Orders, finance & payroll' },
+                { role: 'owner',      icon: '👑', desc: 'Full access — all modules'              },
+                { role: 'supervisor', icon: '🏭', desc: 'Floor, machines, production'             },
+                { role: 'inspector',  icon: '🔍', desc: 'Quality control & defects'               },
+                { role: 'store',      icon: '📦', desc: 'Inventory & dispatch'                    },
+                { role: 'accounts',   icon: '💼', desc: 'Orders, finance & payroll'               },
+                { role: 'worker',     icon: '👷', desc: 'Personal attendance & wages dashboard'   },
               ].map(r => (
                 <div key={r.role} className={cn(
-                  'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-colors',
-                  selectedRole === r.role ? 'bg-primary-500/10' : '',
+                  'flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-colors',
+                  currentUser?.role === r.role ? 'bg-primary-500/10' : '',
                 )}>
-                  <div className={cn(
-                    'w-5 h-5 rounded-lg bg-gradient-to-br flex items-center justify-center text-white text-[10px] font-bold shrink-0',
-                    ROLE_COLORS[r.role],
+                  <span className="text-sm shrink-0">{r.icon}</span>
+                  <span className={cn(
+                    'text-xs font-semibold w-20 shrink-0 capitalize',
+                    currentUser?.role === r.role ? 'text-primary-300' : 'text-zinc-400',
                   )}>
-                    {ROLE_LABELS[r.role].charAt(0)}
-                  </div>
-                  <span className={cn('text-xs capitalize font-semibold w-20 shrink-0', selectedRole === r.role ? 'text-primary-300' : 'text-zinc-400')}>{r.role}</span>
-                  <span className="text-2xs text-zinc-600">{r.access}</span>
+                    {r.role}
+                  </span>
+                  <span className="text-2xs text-zinc-600">{r.desc}</span>
                 </div>
               ))}
             </div>

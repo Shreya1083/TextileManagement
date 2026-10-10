@@ -44,6 +44,7 @@ import WorkersPage     from './features/hr/WorkersPage'
 import AttendancePage  from './features/hr/AttendancePage'
 import WagesPage       from './features/hr/WagesPage'
 import WorkerDashboard from './features/hr/WorkerDashboard'
+import MyDashboard     from './features/hr/MyDashboard'
 
 // Finance
 import CostingPage from './features/finance/CostingPage'
@@ -105,10 +106,11 @@ export default function App() {
             <Route path="/invoices"       element={<InvoicesPage />} />
 
             {/* HR */}
-            <Route path="/hr/workers"    element={<WorkersPage />} />
-            <Route path="/hr/dashboard"  element={<WorkerDashboard />} />
-            <Route path="/hr/attendance" element={<AttendancePage />} />
-            <Route path="/hr/wages"      element={<WagesPage />} />
+            <Route path="/hr/workers"         element={<WorkersPage />} />
+            <Route path="/hr/dashboard"       element={<WorkerDashboard />} />
+            <Route path="/hr/attendance"      element={<AttendancePage />} />
+            <Route path="/hr/wages"           element={<WagesPage />} />
+            <Route path="/worker/my-dashboard" element={<MyDashboard />} />
 
             {/* Finance */}
             <Route path="/finance/costing" element={<CostingPage />} />
