@@ -140,9 +140,11 @@ export const createGateEntry = async (entryData) => {
       throw new Error(`Challan number ${entryData.challanNumber} already exists for this supplier`);
     }
 
+    const { unitPrice, userId, ...rawEntry } = entryData;
+
     // Create gate entry
     const gateEntry = await tx.gateEntry.create({
-      data: entryData,
+      data: rawEntry,
       include: {
         supplier: true,
         yarnType: true,
@@ -163,6 +165,7 @@ export const createGateEntry = async (entryData) => {
         where: { id: stockBatch.id },
         data: {
           currentQuantity: { increment: entryData.quantity },
+          ...(unitPrice ? { unitPrice } : {}),
         },
       });
     } else {
@@ -173,7 +176,7 @@ export const createGateEntry = async (entryData) => {
           lotNumber: entryData.lotNumber,
           currentQuantity: entryData.quantity,
           reservedQuantity: 0,
-          unitPrice: entryData.unitPrice || 1, // Paise; explicit PO receipt updates the exact price.
+          unitPrice: unitPrice || 1, // Paise; explicit PO receipt updates the exact price.
         },
       });
     }
@@ -186,7 +189,7 @@ export const createGateEntry = async (entryData) => {
       referenceType: 'GATE_ENTRY',
       referenceId: gateEntry.id,
       reason: `GRN: ${gateEntry.grnNumber} from ${gateEntry.supplier.name}`,
-      userId: entryData.userId,
+      userId: userId || entryData.receivedBy,
     });
 
     return gateEntry;
@@ -241,19 +244,35 @@ export const getGateEntryById = async (id) => {
 export const getStockLevels = async (filters = {}) => {
   const { yarnTypeId, lowStock } = filters;
 
-  const where = {};
-  if (yarnTypeId) where.yarnTypeId = yarnTypeId;
+  const whereYarn = {};
+  if (yarnTypeId) whereYarn.id = yarnTypeId;
 
-  const batches = await prisma.stockBatch.findMany({
-    where,
-    include: {
-      yarnType: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const [allYarnTypes, batches] = await Promise.all([
+    prisma.yarnType.findMany({
+      where: whereYarn,
+      orderBy: { name: 'asc' },
+    }),
+    prisma.stockBatch.findMany({
+      where: yarnTypeId ? { yarnTypeId } : {},
+      include: {
+        yarnType: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
 
   // Group by yarn type and calculate totals
   const stockMap = new Map();
+
+  for (const yt of allYarnTypes) {
+    stockMap.set(yt.id, {
+      yarnType: yt,
+      totalQuantity: 0,
+      reservedQuantity: 0,
+      availableQuantity: 0,
+      batches: [],
+    });
+  }
 
   for (const batch of batches) {
     const key = batch.yarnTypeId;

@@ -6,7 +6,7 @@ import {
 import {
   Factory, CheckCircle, AlertTriangle, Clock, Users,
   DollarSign, Package, Truck, FileText, Zap,
-  ArrowRight, BarChart3, Activity, Star, RefreshCw, Download,
+  BarChart3, Activity, Star, RefreshCw, Download,
   CalendarDays, Moon, Sun, Sunset,
 } from 'lucide-react'
 import { PageHeader }  from '../../components/ui/PageHeader'
@@ -88,7 +88,6 @@ export default function EODDashboard() {
   const [activeShift, setActiveShift]   = useState('Morning')
   const [refreshing, setRefreshing]     = useState(false)
   const [exporting, setExporting]       = useState(false)
-  const [shareOpen, setShareOpen]       = useState(false)
   const [reportOpen, setReportOpen]     = useState(false)
   const shift       = mockDailyShifts.find(sh => sh.shift === activeShift)
 
@@ -140,15 +139,7 @@ export default function EODDashboard() {
     }
   }, [s, today, achievePct, passRate, toast])
 
-  // ── Share (copy link) ─────────────────────────────────────────────────────
-  const handleCopyLink = useCallback(() => {
-    navigator.clipboard.writeText(window.location.href)
-      .then(() => {
-        toast('Link copied to clipboard', 'success')
-        setShareOpen(false)
-      })
-      .catch(() => toast('Could not copy link', 'error'))
-  }, [toast])
+
 
   return (
     <div className="page-root">
@@ -574,12 +565,6 @@ export default function EODDashboard() {
             >
               <FileText size={13} />Full Report
             </button>
-            <button
-              onClick={() => setShareOpen(true)}
-              className="btn-secondary btn-sm gap-1.5"
-            >
-              Share <ArrowRight size={13} />
-            </button>
           </div>
         </div>
       </div>
@@ -624,31 +609,7 @@ export default function EODDashboard() {
         </div>
       </Modal>
 
-      {/* ── Share Modal ── */}
-      <Modal
-        open={shareOpen}
-        onClose={() => setShareOpen(false)}
-        title="Share EOD Report"
-        description="Copy the link to this report"
-        size="xs"
-      >
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 bg-zinc-800 rounded-xl px-3 py-2 border border-zinc-700">
-            <span className="text-xs text-zinc-400 flex-1 truncate">{window.location.href}</span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleCopyLink}
-              className="btn-primary btn-sm flex-1 justify-center"
-            >
-              Copy Link
-            </button>
-            <button onClick={() => setShareOpen(false)} className="btn-secondary btn-sm">
-              Cancel
-            </button>
-          </div>
-        </div>
-      </Modal>
+
     </div>
   )
 }

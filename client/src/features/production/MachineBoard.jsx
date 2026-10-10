@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Wrench, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Plus, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
@@ -68,11 +68,17 @@ export default function MachineBoard() {
         title="Machine Board"
         subtitle={`Supervised by ${user?.name} · Machine status and work assignments`}
         actions={
+<<<<<<< HEAD
           <div className="flex gap-2">
             <button className="btn-primary btn-sm" onClick={() => { setAssignForm(BLANK_ASSIGN); setAssignErrors({}); setShowAssign(true) }}>
               <Plus size={13} />Assign
             </button>
           </div>
+=======
+          <button className="btn-primary btn-sm" onClick={() => { setAssignForm(BLANK_ASSIGN); setAssignErrors({}); setShowAssign(true) }}>
+            <Plus size={13} />Assign
+          </button>
+>>>>>>> 97ed768d65e0702d2c6c46f110b1afc59861571f
         }
       />
 

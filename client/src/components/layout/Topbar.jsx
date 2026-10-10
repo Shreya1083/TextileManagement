@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
+<<<<<<< HEAD
 import { Menu, Bell, AlertTriangle, AlertCircle, LogOut, ChevronDown, X } from 'lucide-react'
+=======
+import { Menu, Bell, X, AlertTriangle, AlertCircle, LogOut, ChevronDown } from 'lucide-react'
+>>>>>>> 97ed768d65e0702d2c6c46f110b1afc59861571f
 import { useAuth }   from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
 import { mockAlerts } from '../../mocks/data'
@@ -138,7 +142,12 @@ export function Topbar({ onMenuClick }) {
         <Menu size={18} />
       </button>
 
+<<<<<<< HEAD
       {/* Spacer */}
+=======
+
+
+>>>>>>> 97ed768d65e0702d2c6c46f110b1afc59861571f
       <div className="flex-1" />
 
       {/* Live indicator */}

@@ -1,4 +1,3 @@
-import { ScanLine } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Badge }      from '../../components/ui/Badge'
 import { mockRolls }  from '../../mocks/data'

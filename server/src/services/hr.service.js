@@ -13,20 +13,57 @@ export const createWorker = async (workerData) => {
   });
 
   if (existing) {
-    throw new Error('Employee ID already exists');
+    throw new Error(`Employee ID "${workerData.employeeId}" already exists`);
   }
 
+  // Normalize dailyWage: if provided in rupees (< 20000), convert to integer paise
+  let dailyWage = workerData.dailyWage;
+  if (dailyWage !== undefined && dailyWage !== null) {
+    dailyWage = Number(dailyWage);
+    if (dailyWage > 0 && dailyWage <= 15000) {
+      dailyWage = Math.round(dailyWage * 100);
+    }
+  }
+
+  // Normalize joinDate
+  let joinDate = workerData.joinDate ? new Date(workerData.joinDate) : new Date();
+
+  // Normalize wageBasis
+  let wageBasis = (workerData.wageBasis || 'DAILY').toUpperCase().replace('-', '_');
+  if (wageBasis !== 'DAILY' && wageBasis !== 'PIECE_RATE') wageBasis = 'DAILY';
+
   return await prisma.worker.create({
-    data: workerData,
+    data: {
+      ...workerData,
+      wageBasis,
+      dailyWage: dailyWage || 0,
+      joinDate,
+      department: workerData.department || 'Production',
+      shift: workerData.shift || 'Morning',
+      isActive: workerData.isActive !== undefined ? Boolean(workerData.isActive) : true,
+    },
   });
 };
 
 export const getAllWorkers = async (filters = {}) => {
-  const { isActive, wageBasis, page = 1, limit = 50 } = filters;
+  const { isActive, wageBasis, department, search, page = 1, limit = 100 } = filters;
   
   const where = {};
-  if (isActive !== undefined) where.isActive = isActive === 'true';
-  if (wageBasis) where.wageBasis = wageBasis;
+  if (isActive !== undefined && isActive !== 'all') {
+    where.isActive = isActive === 'true' || isActive === true;
+  }
+  if (wageBasis) where.wageBasis = wageBasis.toUpperCase();
+  if (department && department !== 'ALL') where.department = department;
+
+  if (search && search.trim()) {
+    const q = search.trim();
+    where.OR = [
+      { name: { contains: q, mode: 'insensitive' } },
+      { employeeId: { contains: q, mode: 'insensitive' } },
+      { role: { contains: q, mode: 'insensitive' } },
+      { department: { contains: q, mode: 'insensitive' } },
+    ];
+  }
 
   const [workers, total] = await Promise.all([
     prisma.worker.findMany({
@@ -42,8 +79,8 @@ export const getAllWorkers = async (filters = {}) => {
 };
 
 export const getWorkerById = async (id) => {
-  const worker = await prisma.worker.findUnique({
-    where: { id },
+  const worker = await prisma.worker.findFirst({
+    where: { OR: [{ id }, { employeeId: id }] },
     include: {
       attendance: {
         orderBy: { date: 'desc' },
@@ -76,15 +113,71 @@ export const getWorkerByEmployeeId = async (employeeId) => {
 };
 
 export const updateWorker = async (id, updateData) => {
+  const worker = await prisma.worker.findFirst({
+    where: { OR: [{ id }, { employeeId: id }] },
+  });
+  if (!worker) {
+    throw new Error('Worker not found');
+  }
+
+  // Normalize dailyWage if provided
+  const data = { ...updateData };
+  if (data.dailyWage !== undefined && data.dailyWage !== null) {
+    let wage = Number(data.dailyWage);
+    if (wage > 0 && wage <= 15000) {
+      wage = Math.round(wage * 100);
+    }
+    data.dailyWage = wage;
+  }
+  if (data.wageBasis) {
+    data.wageBasis = data.wageBasis.toUpperCase().replace('-', '_');
+  }
+  if (data.joinDate) {
+    data.joinDate = new Date(data.joinDate);
+  }
+
   return await prisma.worker.update({
-    where: { id },
-    data: updateData,
+    where: { id: worker.id },
+    data,
   });
 };
 
 export const deleteWorker = async (id) => {
-  await prisma.worker.delete({ where: { id } });
-  return { message: 'Worker deleted successfully' };
+  const worker = await prisma.worker.findFirst({
+    where: { OR: [{ id }, { employeeId: id }] },
+    include: {
+      _count: {
+        select: {
+          attendance: true,
+          wageRecords: true,
+        },
+      },
+    },
+  });
+
+  if (!worker) {
+    throw new Error('Worker not found');
+  }
+
+  const hasHistory = worker._count.attendance > 0 || worker._count.wageRecords > 0;
+  if (hasHistory) {
+    // Safe deactivation to preserve historical records
+    await prisma.worker.update({
+      where: { id: worker.id },
+      data: { isActive: false },
+    });
+    return {
+      action: 'DEACTIVATED',
+      message: `Worker ${worker.name} (${worker.employeeId}) has historical attendance/wage records and was safely deactivated.`,
+      worker: { ...worker, isActive: false },
+    };
+  }
+
+  await prisma.worker.delete({ where: { id: worker.id } });
+  return {
+    action: 'DELETED',
+    message: `Worker ${worker.name} (${worker.employeeId}) deleted successfully`,
+  };
 };
 
 // ============================================
@@ -147,6 +240,39 @@ export const markAttendance = async (attendanceData, userId = null) => {
   };
 
   return await prisma.$transaction(async (tx) => {
+    // Verify worker exists and is active
+    const targetWorker = await tx.worker.findUnique({
+      where: { id: normalizedAttendanceData.workerId },
+    });
+    if (!targetWorker) {
+      throw new Error('Worker not found');
+    }
+    if (!targetWorker.isActive) {
+      throw new Error(`Cannot mark attendance for deactivated worker "${targetWorker.name}"`);
+    }
+
+    // Role-based supervisor permission check:
+    // A supervisor cannot mark attendance for another supervisor unless explicitly permitted in settings
+    if (userId) {
+      const actorUser = await tx.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+
+      if (actorUser && actorUser.role === 'SUPERVISOR') {
+        const isTargetSupervisor = targetWorker.role && targetWorker.role.toLowerCase().includes('supervisor');
+        if (isTargetSupervisor) {
+          const supervisorPermission = await tx.setting.findUnique({
+            where: { key: 'ALLOW_SUPERVISOR_MARK_SUPERVISOR' },
+          });
+          const isAllowed = supervisorPermission?.value === 'true';
+          if (!isAllowed) {
+            throw new Error('Supervisors are not authorized to mark attendance for other supervisors without explicit administrative permission.');
+          }
+        }
+      }
+    }
+
     // Check if attendance already exists for this worker, date, and shift
     const existing = await tx.attendance.findFirst({
       where: {
@@ -479,41 +605,41 @@ export const generateWageSheet = async (month, year, userId = null) => {
 
     const totalOvertime = attendance.reduce((sum, a) => sum + a.overtimeHours, 0);
 
-    // Calculate gross wage
-    let grossWage = 0;
+    // Calculate base wage
+    let baseWage = 0;
     if (worker.wageBasis === 'DAILY') {
-      grossWage = Math.round((worker.dailyWage || 0) * payableDays);
+      baseWage = Math.round((worker.dailyWage || 0) * payableDays);
     } else if (worker.wageBasis === 'PIECE_RATE') {
       // For piece rate, we'd need production data
       // Simplified here - would need actual piece count
-      grossWage = Math.round((worker.pieceRate || 0) * payableDays * 10); // Example
+      baseWage = Math.round((worker.pieceRate || 0) * payableDays * 10); // Example
     }
 
     // Add overtime (example: 1.5x daily rate per hour, all values in paise)
     const overtimeRate = Math.round(((worker.dailyWage || 0) / 8) * 1.5);
     const overtimePay = totalOvertime * overtimeRate;
-    grossWage += overtimePay;
 
     const deductions = 0; // Would be calculated based on company policy
-    const netWage = grossWage - deductions;
+    const netWage = baseWage + overtimePay - deductions;
 
-    // Wages are already stored as integer paise.
-    const grossWagePaise = Math.round(grossWage);
+    const baseWagePaise = Math.round(baseWage);
+    const overtimePayPaise = Math.round(overtimePay);
     const deductionsPaise = Math.round(deductions);
     const netWagePaise = Math.round(netWage);
 
-    // Validate wage calculation using business rules
+    // Validate wage calculation using business rules:
+    // businessRules.validateWageCalculation expects baseWage + (overtimeHours * overtimeRate) - deductions === netWage
     AttendanceRules.validateWageCalculation(
       daysPresent,
       totalOvertime,
-      grossWagePaise,
+      baseWagePaise,
       deductionsPaise,
       netWagePaise,
-      { overtimeRate: MoneyRules.rupeesToPaise(overtimeRate) }
+      { overtimeRate }
     );
 
     // Validate money precision
-    MoneyRules.validateMoney(grossWagePaise, 'grossWage');
+    MoneyRules.validateMoney(baseWagePaise, 'grossWage');
     MoneyRules.validateMoney(deductionsPaise, 'deductions');
     MoneyRules.validateMoney(netWagePaise, 'netWage');
 
@@ -522,8 +648,8 @@ export const generateWageSheet = async (month, year, userId = null) => {
       month,
       year,
       daysPresent,
-      overtime: totalOvertime,
-      grossWage: grossWagePaise,
+      overtime: overtimePayPaise,
+      grossWage: baseWagePaise,
       deductions: deductionsPaise,
       netWage: netWagePaise,
       isLocked: false,
@@ -572,10 +698,15 @@ export const generateWageSheet = async (month, year, userId = null) => {
 };
 
 export const getAllWageRecords = async (filters = {}) => {
-  const { workerId, month, year, isLocked, page = 1, limit = 50 } = filters;
+  const { workerId, month, year, isLocked, page = 1, limit = 100 } = filters;
   
   const where = {};
-  if (workerId) where.workerId = workerId;
+  if (workerId) {
+    where.OR = [
+      { workerId: workerId },
+      { worker: { employeeId: workerId } },
+    ];
+  }
   if (month) where.month = parseInt(month);
   if (year) where.year = parseInt(year);
   if (isLocked !== undefined) where.isLocked = isLocked === 'true';
@@ -584,11 +715,21 @@ export const getAllWageRecords = async (filters = {}) => {
     prisma.wageRecord.findMany({
       where,
       include: {
-        worker: { select: { name: true, employeeId: true, wageBasis: true } },
+        worker: {
+          select: {
+            id: true,
+            name: true,
+            employeeId: true,
+            role: true,
+            department: true,
+            wageBasis: true,
+            dailyWage: true,
+          },
+        },
       },
       skip: (page - 1) * limit,
       take: limit,
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
     }),
     prisma.wageRecord.count({ where }),
   ]);

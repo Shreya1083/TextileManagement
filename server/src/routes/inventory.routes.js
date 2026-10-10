@@ -99,7 +99,7 @@ router.delete(
 
 router.post(
   '/gate-entries',
-  authorize('STOREKEEPER'),
+  authorize('OWNER', 'STOREKEEPER'),
   createGateEntryValidator,
   inventoryController.createGateEntry
 );
