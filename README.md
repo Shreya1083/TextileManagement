@@ -118,20 +118,54 @@ Order Costing -> Machine Output -> Monthly P&L / Owner Dashboard
 
 ```mermaid
 flowchart TD
-    A["Supplier / Yarn Purchase"] --> B["Gate Entry / Goods Receipt - GRN"]
-    B --> C["Yarn Lots + Stock Ledger + Availability Check"]
-    C --> D["Buyer Order + Yarn Reservation / Purchase Order"]
-    D --> E["Production Order and Work Assignment"]
-    E --> F["Spinning"] --> G["Weaving"] --> H["Dyeing"] --> I["Finishing - as applicable"]
-    I --> J["Production Logs + Unique Fabric Roll IDs / QR Labels"]
-    J --> K{"Quality Inspection<br/>Awaiting QC"}
-    K -->|Pass| L["Finished-Goods Stock"]
-    K -->|Rework| M["Production / Re-inspection"]
-    K -->|Reject| R["Rejected - recorded, not dispatchable"]
-    M --> K
-    L --> N["Dispatch Selection -> Packing List -> Shipment"]
-    N --> O["Invoice -> Buyer Payment / Outstanding Balance"]
-    O --> P["Order Costing -> Machine Output -> Monthly P&L / Owner Dashboard"]
+    subgraph PROC["1. Procurement"]
+        A([Supplier / Yarn Purchase]) --> B[Gate Entry / GRN]
+        B --> C[Yarn Lots + Stock Ledger<br/>+ Availability Check]
+    end
+
+    subgraph PLAN["2. Order Planning"]
+        D[Buyer Order +<br/>Yarn Reservation / PO]
+        E[Production Order +<br/>Work Assignment]
+        D --> E
+    end
+
+    subgraph PROD["3. Production"]
+        F[Spinning] --> G[Weaving] --> H[Dyeing] --> I["Finishing<br/>(as applicable)"]
+        I --> J[Production Logs +<br/>Unique Roll IDs / QR Labels]
+    end
+
+    subgraph QC["4. Quality Control"]
+        K{Inspection<br/>Awaiting QC}
+        M[Production /<br/>Re-inspection]
+        X[Rejected<br/>recorded, not dispatchable]
+        K -- Rework --> M
+        M --> K
+        K -- Reject --> X
+    end
+
+    subgraph DISP["5. Dispatch and Billing"]
+        L[Finished-Goods Stock] --> N[Dispatch Selection<br/>-> Packing List -> Shipment]
+        N --> O[Invoice -> Buyer Payment /<br/>Outstanding Balance]
+    end
+
+    subgraph FIN["6. Finance and Reporting"]
+        P[Order Costing -> Machine Output<br/>-> Monthly P&L / Owner Dashboard]
+    end
+
+    C --> D
+    E --> F
+    J --> K
+    K -- Pass --> L
+    O --> P
+
+    classDef start fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef done fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    class A start
+    class K decision
+    class X bad
+    class P done
 ```
 
 **Parallel workforce workflow:**
@@ -148,14 +182,35 @@ Employee identity / approved attendance method
 
 ```mermaid
 flowchart TD
-    W1["Employee identity / approved attendance method"] --> W2["Shift attendance record"]
-    W2 --> W3["Supervisor review / correction audit"]
-    W3 --> W4["Approved attendance + wage policy"]
-    W4 --> W5["Wage sheet / payroll"]
-    W5 --> W6["Labour cost allocation"]
-    W6 --> W7["Order / roll costing"]
-```
+    subgraph CAP["1. Attendance Capture"]
+        W1([Employee identity /<br/>approved attendance method]) --> W2[Shift attendance record]
+    end
 
+    subgraph REV["2. Review"]
+        W3{Supervisor review /<br/>correction audit}
+        W3 -- Exception --> WC[Correction with reason,<br/>actor and timestamp]
+        WC --> W3
+    end
+
+    subgraph PAY["3. Payroll"]
+        W4[Approved attendance +<br/>wage policy] --> W5[Wage sheet / payroll]
+    end
+
+    subgraph COST["4. Costing"]
+        W6[Labour cost allocation] --> W7[Order / roll costing]
+    end
+
+    W2 --> W3
+    W3 -- Approved --> W4
+    W5 --> W6
+
+    classDef start fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef done fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    class W1 start
+    class W3 decision
+    class W7 done
+```
 ## 4. Users and Permissions
 
 The build plan defines six roles.
