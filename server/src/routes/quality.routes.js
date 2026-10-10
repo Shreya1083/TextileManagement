@@ -22,15 +22,15 @@ router.get(
 );
 
 router.get(
-  '/rolls/:id',
-  authorize('OWNER', 'SUPERVISOR', 'INSPECTOR', 'STOREKEEPER'),
-  qualityController.getFabricRollById
-);
-
-router.get(
   '/rolls/number/:rollNumber',
   authorize('OWNER', 'SUPERVISOR', 'INSPECTOR', 'STOREKEEPER'),
   qualityController.getFabricRollByNumber
+);
+
+router.get(
+  '/rolls/:id',
+  authorize('OWNER', 'SUPERVISOR', 'INSPECTOR', 'STOREKEEPER'),
+  qualityController.getFabricRollById
 );
 
 router.put(

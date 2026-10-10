@@ -11,7 +11,7 @@
 3. [Factory Workflow](#3-factory-workflow)
 4. [Users and Permissions](#4-users-and-permissions)
 5. [Complete ERP Modules](#5-complete-erp-modules)
-6. [Smart Technology and AI/IoT Features](#6-smart-technology-and-aiiot-features)
+6. [Smart Technology and Analytics Features](#6-smart-technology-and-analytics-features)
 7. [QR Workflows](#7-qr-workflows)
 8. [Business Rules and Status Lifecycles](#8-business-rules-and-status-lifecycles)
 9. [Technology Stack](#9-technology-stack)
@@ -1546,16 +1546,15 @@ Production operations should include:
 - A support procedure for reporting incorrect stock, roll status, attendance or invoice records.
 - Versioned release notes and a record of database migrations applied.
 
-Do not log full QR tokens, buyer tracking tokens, passwords, secret keys, biometric data or full payment details.
+Do not log full QR tokens, buyer tracking tokens, passwords, secret keys or full payment details.
 
 ### Optional Integrations: Failure Modes and Fallbacks
 
 | Integration | Expected failure cases | Required fallback |
 |---|---|---|
 | QR camera scan | Poor lighting, damaged label, unsupported camera permission | Manual roll-ID search by authorized user, with normal validation |
-| RFID reader/card | Unreadable card, lost card, disconnected reader | Revocation flow and supervised alternative |
-| Face matching | Low light, mask/appearance changes, false match, camera failure | Manual review and non-biometric method; no automatic wage penalty |
-| ESP32 telemetry | Network outage, stale timestamp, repeated events, invalid device | Show stale/offline status; do not fabricate machine readings |
+| Attendance session QR | Expired token, duplicate scan, unsupported camera permission | Manual supervisor correction with audit |
+| Simulated telemetry | Stale timestamp, repeated event, invalid machine/status | Reject invalid event; use manual machine status entry |
 | Defect model | Low confidence, unsupported fabric, service unavailable | Inspector records result manually |
 | OCR/vehicle plate | Blurred/obstructed plate or wrong reading | Human confirmation before saving gate/dispatch record |
 | WhatsApp/email | Provider outage, invalid destination, delivery failure | Queue/retry safely, log status and show internal notification |
@@ -1564,9 +1563,8 @@ Do not log full QR tokens, buyer tracking tokens, passwords, secret keys, biomet
 ```mermaid
 flowchart LR
     QRc["QR camera scan"] -. fails .-> QRf["Manual roll-ID search + normal validation"]
-    RF["RFID reader / card"] -. fails .-> RFf["Card revocation + supervised alternative"]
-    FM["Face matching"] -. fails .-> FMf["Manual review + non-biometric method"]
-    ESP["ESP32 telemetry"] -. fails .-> ESPf["Show stale/offline status, no fabricated data"]
+    ATT["Attendance session QR"] -. fails .-> ATTf["Supervisor correction + audit"]
+    SIM["Simulated telemetry"] -. fails .-> SIMf["Manual machine status entry"]
     AI["Defect model"] -. fails .-> AIf["Inspector records result manually"]
     OCR["Plate OCR"] -. fails .-> OCRf["Human confirmation before saving"]
     MSG["WhatsApp / email"] -. fails .-> MSGf["Queue, retry, internal notification"]
@@ -1583,11 +1581,11 @@ For a reliable hackathon or stakeholder demonstration:
 - [ ] Prepare pass, rework and reject examples.
 - [ ] Demonstrate that a second dispatch of the same roll is blocked.
 - [ ] Demonstrate attendance scan validation and supervisor correction audit.
-- [ ] Use a simulator for RFID/ESP32/camera when physical hardware is unavailable.
+- [ ] Use software simulation for machine telemetry when physical hardware is unavailable.
 - [ ] Show AI output as a suggestion and demonstrate human confirmation.
-- [ ] Keep a fallback recording or screenshots for hardware-dependent features.
+- [ ] Keep screenshots or seeded fallback data for demo-dependent features.
 - [ ] Make clear which data is live, simulated or seeded.
-- [ ] Do not present simulated sensor data or mock API responses as real factory telemetry.
+- [ ] Do not present simulated telemetry or mock API responses as real factory data.
 
 ### Definition of Done
 
@@ -1608,7 +1606,7 @@ A feature is complete only when all relevant conditions are met:
 
 ### Final Scope Boundary
 
-The original problem statement and the Everest Textile Mills build plan define the core business requirements. Face recognition, RFID-based floor login, ESP32 sensors, vehicle OCR, AI defect detection, AI summaries, delay prediction and WhatsApp notifications are enhancements proposed in the subsequent project discussion. Keep each enhancement optional, separately testable and replaceable. Confirm costs, device compatibility, model licensing, privacy requirements and factory policy before committing to a production implementation.
+The original problem statement and the Everest Textile Mills build plan define the core business requirements. The active enhancement scope is QR traceability, QR/session attendance, simulated telemetry, analytics, optional AI summaries/predictions and notification workflows. Face recognition, RFID-based floor login, ESP32 sensors and vehicle-camera OCR are out of scope until hardware, budget, privacy, safety and maintenance decisions are approved.
 
 ---
 
@@ -1649,7 +1647,7 @@ Every chart should define its metric, unit, time period, filters, and data fresh
 | Reorder quantity | Demand forecast, supplier lead time, minimum order quantity, safety-stock policy | Deterministic reorder-point calculation first | Stockout rate, excess stock, inventory holding cost |
 | Quality/defect risk | Batch and inspection history, fabric/specification, machine, process settings, supplier/material lots | Logistic regression or tree-based classifier after sufficient labeled records | Precision, recall, PR-AUC, calibration; cost of false negatives |
 | Delay risk / completion estimate | Order due date, routing steps, planned/actual progress, queue, machine capacity, downtime | Rule-based baseline, then regression/classification | MAE for completion time; precision/recall for late-order risk |
-| Machine downtime risk | Maintenance logs, failure timestamps, runtime, sensor readings if installed | Rules and anomaly detection first; supervised model only with labeled failures | Alert precision, recall, lead time, false-alert rate |
+| Machine downtime risk | Maintenance logs, failure timestamps, runtime and simulated/manual machine events | Rules and anomaly detection first; supervised model only with labeled failures | Alert precision, recall, lead time, false-alert rate |
 | Cost and margin analysis | Material issues, labor allocation, energy/overhead allocation, production quantity, sales and returns | Deterministic costing and variance analysis first | Reconciliation to finance-approved totals |
 
 Do not promise accurate prediction before checking data quality, historical coverage, process stability, and the number of labeled examples. If the dataset is insufficient, display descriptive analytics and transparent rules-based estimates rather than presenting an unvalidated model as AI.
@@ -1682,7 +1680,7 @@ flowchart LR
 **Phase C — Operational risk models**
 
 - Add batch defect risk and delivery-delay risk only after outcome labels and relevant process data are reliable.
-- Investigate downtime prediction after maintenance/failure records are sufficiently complete; add IoT sensor data only if hardware and sampling quality are confirmed.
+- Investigate downtime prediction after maintenance/failure records are sufficiently complete; use simulated/manual event data until real hardware is approved.
 - Display the main contributing factors carefully; use explainability techniques where appropriate and avoid claiming that correlations prove causes.
 - Run in shadow mode first, compare predictions with real outcomes, and obtain factory-user feedback.
 
@@ -1803,6 +1801,6 @@ Do not store unnecessary personal data or duplicate all raw ERP records into the
 
 ### 37.11 Scope decisions to confirm
 
-Before committing to model development, confirm: which textile processes are in scope (spinning, weaving, dyeing, finishing, garmenting, or only the processes used at the factory); which historical data exists and for how long; whether data is available per shift, machine, batch, and product; which units are used; how quality failures and machine failures are labeled; whether sensor data exists; who can view financial data; and whether predictions run on a schedule or on demand.
+Before committing to model development, confirm: which textile processes are in scope (spinning, weaving, dyeing, finishing, garmenting, or only the processes used at the factory); which historical data exists and for how long; whether data is available per shift, machine, batch, and product; which units are used; how quality failures and machine failures are labeled; whether simulated/manual machine-event data is sufficient; who can view financial data; and whether predictions run on a schedule or on demand.
 
 **Recommended starting point:** build trusted production, quality, inventory, and financial analytics first; then pilot production/demand forecasting with simple baselines. Add defect, downtime, and delay models only when their training data and evaluation criteria are ready.
