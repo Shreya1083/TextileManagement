@@ -1,14 +1,17 @@
+import { useState, useCallback } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import {
   DollarSign, Package, Factory, CheckCircle, AlertTriangle,
-  Clock, Zap, ArrowRight, Activity, CalendarCheck,
+  Clock, Zap, ArrowRight, Activity, CalendarCheck, RefreshCw, X,
 } from 'lucide-react'
 import { StatCard }    from '../../components/ui/StatCard'
 import { Badge }       from '../../components/ui/Badge'
 import { PageHeader }  from '../../components/ui/PageHeader'
+import { Modal }       from '../../components/ui/Modal'
+import { useToast }    from '../../components/ui/Toast'
 import { formatCurrency, formatDate } from '../../lib/utils'
 import { useAuth }     from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
@@ -39,17 +42,49 @@ const CHART_STYLE = {
 }
 
 export default function OwnerDashboard() {
-  const { user } = useAuth()
+  const { user }  = useAuth()
+  const toast     = useToast()
+
+  // ── Refreshable state ───────────────────────────────────────────────────
+  const [refreshing, setRefreshing]   = useState(false)
+  const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [alerts, setAlerts]           = useState(mockAlerts)
+  const [selectedOrder, setSelectedOrder] = useState(null)
+
   const running = mockMachines.filter(m => m.status === 'RUNNING').length
   const delayed = mockOrders.filter(
     o => !['DISPATCHED','CLOSED'].includes(o.status) && new Date(o.deadline) < new Date()
   ).length
 
+  // ── Refresh handler ─────────────────────────────────────────────────────
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true)
+    // Simulate a network fetch (1.2s)
+    setTimeout(() => {
+      setLastRefresh(new Date())
+      setRefreshing(false)
+      toast('Dashboard data refreshed', 'success')
+    }, 1200)
+  }, [toast])
+
+  // ── Dismiss alert ───────────────────────────────────────────────────────
+  const dismissAlert = useCallback((id) => {
+    setAlerts(prev => prev.filter(a => a.id !== id))
+    toast('Alert dismissed', 'info', 2000)
+  }, [toast])
+
   const greeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return 'Good morning'
-    if (hour < 17) return 'Good afternoon'
+    const h = new Date().getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
     return 'Good evening'
+  }
+
+  const timeSince = (date) => {
+    const diff = Math.floor((new Date() - date) / 1000)
+    if (diff < 60) return 'just now'
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
+    return `${Math.floor(diff / 3600)} hr ago`
   }
 
   return (
@@ -63,6 +98,15 @@ export default function OwnerDashboard() {
             <Link to="/eod" className="btn-secondary btn-sm gap-1.5">
               <CalendarCheck size={13} />EOD Report
             </Link>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="btn-secondary btn-sm gap-1.5"
+              title={`Last refreshed: ${timeSince(lastRefresh)}`}
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
             <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-2xs font-bold text-emerald-400 uppercase tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Live data
@@ -117,36 +161,45 @@ export default function OwnerDashboard() {
             value: `${running}/${mockStats.machines.total}`,
             label: 'Machines running',
             sub: `${mockStats.machines.idle} idle · ${mockStats.machines.breakdown} breakdown`,
+            link: '/production/machines',
+            linkLabel: 'View machines',
           },
           {
             icon: AlertTriangle, iconBg: 'bg-amber-500/15', iconClr: 'text-amber-400',
             value: mockStats.lowStock.count,
             label: 'Low stock items',
             sub: 'Below reorder level',
+            link: '/inventory/stock',
+            linkLabel: 'View stock',
           },
           {
             icon: Clock, iconBg: 'bg-red-500/15', iconClr: 'text-red-400',
             value: delayed,
             label: 'Delayed orders',
             sub: 'Past deadline',
+            link: '/orders',
+            linkLabel: 'View orders',
           },
           {
             icon: DollarSign, iconBg: 'bg-orange-500/15', iconClr: 'text-orange-400',
             value: formatCurrency(mockStats.receivables.value),
             label: 'Receivables',
             sub: 'Outstanding from buyers',
+            link: '/invoices',
+            linkLabel: 'View invoices',
           },
         ].map((c, i) => (
-          <div key={i} className="card p-5 flex items-center gap-4">
+          <Link key={i} to={c.link} className="card p-5 flex items-center gap-4 hover:border-primary-500/40 transition-colors group">
             <div className={`stat-card-icon ${c.iconBg}`}>
               <c.icon size={18} className={c.iconClr} />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xl font-bold text-zinc-50">{c.value}</p>
               <p className="text-xs font-semibold text-zinc-400 mt-0.5">{c.label}</p>
               {c.sub && <p className="text-2xs text-zinc-600 mt-0.5">{c.sub}</p>}
             </div>
-          </div>
+            <ArrowRight size={14} className="text-zinc-700 group-hover:text-primary-400 transition-colors shrink-0" />
+          </Link>
         ))}
       </div>
 
@@ -196,6 +249,7 @@ export default function OwnerDashboard() {
               <p className="section-title">Quality Results</p>
               <p className="text-xs text-zinc-500 mt-0.5">This month — {mockQualityData.reduce((s,d)=>s+d.value,0)} rolls</p>
             </div>
+            <Link to="/quality/defects" className="btn-ghost btn-xs text-primary-400">Details →</Link>
           </div>
           <div className="p-5">
             <div className="relative flex justify-center">
@@ -266,29 +320,46 @@ export default function OwnerDashboard() {
           </div>
         </div>
 
-        {/* Live Alerts */}
+        {/* Live Alerts — dismissable */}
         <div className="card flex flex-col overflow-hidden">
           <div className="section-header">
             <div className="flex items-center gap-2">
               <Activity size={14} className="text-zinc-500" />
               <p className="section-title">Live Alerts</p>
             </div>
-            <span className="badge badge-red">{mockAlerts.length}</span>
+            <span className="badge badge-red">{alerts.length}</span>
           </div>
-          <ul className="flex-1 divide-y divide-zinc-800/40 overflow-y-auto scrollbar-thin">
-            {mockAlerts.map(a => (
-              <li key={a.id} className="flex gap-3 px-5 py-3.5 hover:bg-zinc-800/30 transition-colors cursor-pointer">
-                <div className={`w-1.5 shrink-0 rounded-full self-stretch ${a.severity === 'danger' ? 'bg-red-500' : 'bg-amber-500'}`} />
-                <div className="min-w-0">
-                  <p className={`text-2xs font-bold uppercase tracking-wider ${a.severity === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
-                    {a.type.replace('-', ' ')}
-                  </p>
-                  <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed">{a.message}</p>
-                  <p className="text-2xs text-zinc-600 mt-1">{a.time}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {alerts.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 py-10 text-zinc-600">
+              <CheckCircle size={28} />
+              <p className="text-sm font-semibold">All clear</p>
+              <p className="text-xs">No active alerts</p>
+            </div>
+          ) : (
+            <ul className="flex-1 divide-y divide-zinc-800/40 overflow-y-auto scrollbar-thin">
+              {alerts.map(a => (
+                <li key={a.id} className="flex gap-3 px-4 py-3.5 hover:bg-zinc-800/30 transition-colors group">
+                  <div className={`w-1.5 shrink-0 rounded-full self-stretch ${a.severity === 'danger' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-2xs font-bold uppercase tracking-wider ${a.severity === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
+                      {a.type.replace('-', ' ')}
+                    </p>
+                    <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed">{a.message}</p>
+                    <p className="text-2xs text-zinc-600 mt-1">{a.time}</p>
+                  </div>
+                  {/* Dismiss button */}
+                  <button
+                    onClick={() => dismissAlert(a.id)}
+                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-lg text-zinc-700
+                               hover:text-zinc-300 hover:bg-zinc-700/50 transition-all opacity-0 group-hover:opacity-100"
+                    aria-label="Dismiss alert"
+                  >
+                    <X size={12} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
@@ -311,7 +382,11 @@ export default function OwnerDashboard() {
             {mockOrders.slice(0, 6).map(o => {
               const overdue = !['DISPATCHED','CLOSED'].includes(o.status) && new Date(o.deadline) < new Date()
               return (
-                <tr key={o.id}>
+                <tr
+                  key={o.id}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedOrder(o)}
+                >
                   <td className="font-mono text-xs text-primary-400 font-semibold">{o.id}</td>
                   <td className="font-medium text-zinc-200">{o.buyer}</td>
                   <td className="text-zinc-400">{o.fabric}</td>
@@ -333,7 +408,69 @@ export default function OwnerDashboard() {
             })}
           </tbody>
         </table>
+        <p className="px-5 py-2 text-2xs text-zinc-600">Click any row to view order details</p>
       </div>
+
+      {/* ── Order detail modal ── */}
+      <Modal
+        open={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        title={selectedOrder?.id}
+        description={`${selectedOrder?.buyer} · ${selectedOrder?.fabric}`}
+        size="sm"
+      >
+        {selectedOrder && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Colour',   value: selectedOrder.colour },
+                { label: 'Quantity', value: `${selectedOrder.qty.toLocaleString()} m` },
+                { label: 'Deadline', value: formatDate(selectedOrder.deadline) },
+                { label: 'Progress', value: `${selectedOrder.progress}%` },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-zinc-800/50 rounded-xl p-3">
+                  <p className="text-2xs text-zinc-500 uppercase tracking-wide mb-1">{label}</p>
+                  <p className="text-sm font-bold text-zinc-100">{value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge status={selectedOrder.status} />
+              {new Date(selectedOrder.deadline) < new Date() &&
+                !['DISPATCHED','CLOSED'].includes(selectedOrder.status) && (
+                <span className="badge badge-red">Overdue</span>
+              )}
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1.5">
+                <span className="text-zinc-500">Production progress</span>
+                <span className="font-mono text-zinc-300">{selectedOrder.progress}%</span>
+              </div>
+              <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-primary-600 to-primary-400 transition-all duration-700"
+                  style={{ width: `${selectedOrder.progress}%` }}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Link
+                to="/orders"
+                className="btn-primary btn-sm flex-1 justify-center"
+                onClick={() => setSelectedOrder(null)}
+              >
+                Open Full Order <ArrowRight size={13} />
+              </Link>
+              <button
+                className="btn-secondary btn-sm"
+                onClick={() => setSelectedOrder(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

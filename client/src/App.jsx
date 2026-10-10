@@ -4,6 +4,7 @@ import { useAuth }      from './context/AuthContext'
 import { ROLE_HOME }    from './context/AuthContext'
 import { ProtectedRoute } from './app/ProtectedRoute'
 import { AppLayout }      from './components/layout/AppLayout'
+import { ToastProvider }  from './components/ui/Toast'
 
 // Public
 import LoginPage          from './features/auth/LoginPage'
@@ -70,6 +71,7 @@ function RootRedirect() {
 export default function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <Routes>
         {/* Public */}
         <Route path="/login"  element={<LoginPage />} />
@@ -137,6 +139,7 @@ export default function App() {
         {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </ToastProvider>
     </AuthProvider>
   )
 }

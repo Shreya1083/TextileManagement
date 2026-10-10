@@ -1,29 +1,51 @@
 import { useState } from 'react'
-import { CheckCircle2, XCircle, Clock, ScanLine, Save } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, ScanLine, Save, CheckCheck } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { ExportMenu } from '../../components/ui/ExportMenu'
+import { useToast }   from '../../components/ui/Toast'
 import { mockWorkers } from '../../mocks/data'
 import { cn } from '../../lib/utils'
 import { useAuth } from '../../context/AuthContext'
 import { exportPDF, exportExcel } from '../../lib/exportUtils'
 
 const STATUS_CFG = {
-  PRESENT:  { label: 'Present',  short: 'P', bg: 'bg-emerald-500/15 border-emerald-500/40', text: 'text-emerald-300', icon: CheckCircle2, dot: 'bg-emerald-400' },
-  ABSENT:   { label: 'Absent',   short: 'A', bg: 'bg-red-500/15 border-red-500/40',         text: 'text-red-300',     icon: XCircle,      dot: 'bg-red-400'     },
-  HALF_DAY: { label: 'Half Day', short: 'H', bg: 'bg-amber-500/15 border-amber-500/40',     text: 'text-amber-300',   icon: Clock,        dot: 'bg-amber-400'   },
+  PRESENT:  { label:'Present',  short:'P', bg:'bg-emerald-500/15 border-emerald-500/40', text:'text-emerald-300', icon:CheckCircle2, dot:'bg-emerald-400' },
+  ABSENT:   { label:'Absent',   short:'A', bg:'bg-red-500/15 border-red-500/40',         text:'text-red-300',     icon:XCircle,      dot:'bg-red-400'     },
+  HALF_DAY: { label:'Half Day', short:'H', bg:'bg-amber-500/15 border-amber-500/40',     text:'text-amber-300',   icon:Clock,        dot:'bg-amber-400'   },
 }
 const CYCLE = ['PRESENT', 'ABSENT', 'HALF_DAY']
 
 export default function AttendancePage() {
   const { user } = useAuth()
-  const [shift, setShift] = useState('Morning')
-  const [att, setAtt] = useState(Object.fromEntries(mockWorkers.map(w => [w.id, 'PRESENT'])))
-  const cycle = id => setAtt(p => ({ ...p, [id]: CYCLE[(CYCLE.indexOf(p[id]) + 1) % CYCLE.length] }))
+  const toast    = useToast()
+
+  const [shift, setShift]   = useState('Morning')
+  const [saved, setSaved]   = useState(false)
+  const [att, setAtt]       = useState(Object.fromEntries(mockWorkers.map(w => [w.id, 'PRESENT'])))
+
+  const cycle = id => {
+    setSaved(false)
+    setAtt(p => ({ ...p, [id]: CYCLE[(CYCLE.indexOf(p[id]) + 1) % CYCLE.length] }))
+  }
+
+  const markAll = (status) => {
+    setSaved(false)
+    setAtt(Object.fromEntries(mockWorkers.map(w => [w.id, status])))
+    toast(`All workers marked as ${STATUS_CFG[status].label}`, 'info')
+  }
+
   const counts = {
     PRESENT:  Object.values(att).filter(v => v === 'PRESENT').length,
     ABSENT:   Object.values(att).filter(v => v === 'ABSENT').length,
     HALF_DAY: Object.values(att).filter(v => v === 'HALF_DAY').length,
   }
+
+  const handleSave = () => {
+    setSaved(true)
+    toast(`Attendance saved — ${shift} shift · ${counts.PRESENT}P ${counts.ABSENT}A ${counts.HALF_DAY}H`, 'success')
+  }
+
+  const handleQRSession = () => toast('QR session requires a camera — available on mobile devices', 'info')
 
   const handleExportPDF = () => exportPDF({
     title: 'Attendance Sheet',
@@ -46,7 +68,9 @@ export default function AttendancePage() {
         actions={
           <div className="flex gap-2">
             <ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
-            <button className="btn-secondary btn-sm"><ScanLine size={13} />QR Session</button>
+            <button className="btn-secondary btn-sm" onClick={handleQRSession}>
+              <ScanLine size={13} />QR Session
+            </button>
           </div>
         }
       />
@@ -55,19 +79,26 @@ export default function AttendancePage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex gap-2">
           {['Morning','Afternoon','Night'].map(s => (
-            <button key={s} onClick={() => setShift(s)}
+            <button key={s} onClick={() => { setShift(s); setSaved(false) }}
               className={cn('btn-secondary btn-sm', shift === s && 'bg-primary-500/15 border-primary-500/50 text-primary-300')}>
               {s}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-5 text-xs">
-          {Object.entries(STATUS_CFG).map(([k, c]) => (
-            <span key={k} className="flex items-center gap-1.5">
-              <span className={cn('w-2 h-2 rounded-full', c.dot)} />
-              <span className={c.text}>{counts[k]} {c.label}</span>
-            </span>
-          ))}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 text-xs">
+            {Object.entries(STATUS_CFG).map(([k, c]) => (
+              <span key={k} className="flex items-center gap-1.5">
+                <span className={cn('w-2 h-2 rounded-full', c.dot)} />
+                <span className={c.text}>{counts[k]} {c.label}</span>
+              </span>
+            ))}
+          </div>
+          {/* Quick mark-all */}
+          <div className="flex gap-1">
+            <button onClick={() => markAll('PRESENT')} className="btn-ghost btn-xs text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10">All P</button>
+            <button onClick={() => markAll('ABSENT')}  className="btn-ghost btn-xs text-red-400 border border-red-500/20 hover:bg-red-500/10">All A</button>
+          </div>
         </div>
       </div>
 
@@ -75,11 +106,11 @@ export default function AttendancePage() {
       <div className="card overflow-hidden">
         <div className="section-header">
           <p className="section-title">{shift} Shift — {mockWorkers.length} workers</p>
-          <p className="text-2xs text-zinc-600">Click status to toggle P → A → H</p>
+          <p className="text-2xs text-zinc-600">Click status button to toggle P → A → Half Day</p>
         </div>
         <div className="divide-y divide-zinc-800/40">
           {mockWorkers.map(w => {
-            const s = att[w.id]
+            const s   = att[w.id]
             const cfg = STATUS_CFG[s]
             return (
               <div key={w.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-zinc-800/30 transition-colors">
@@ -105,8 +136,17 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button className="btn-primary gap-2"><Save size={14} />Save Attendance</button>
+      <div className="flex items-center justify-between">
+        {saved ? (
+          <span className="flex items-center gap-2 text-sm text-emerald-400 font-semibold">
+            <CheckCheck size={15} />Attendance saved for {shift} shift
+          </span>
+        ) : (
+          <span className="text-xs text-zinc-600">Unsaved changes</span>
+        )}
+        <button className="btn-primary gap-2" onClick={handleSave}>
+          <Save size={14} />Save Attendance
+        </button>
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -11,9 +11,12 @@ import {
 } from 'lucide-react'
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { Badge }       from '../../components/ui/Badge'
+import { Modal }       from '../../components/ui/Modal'
+import { useToast }    from '../../components/ui/Toast'
 import { useAuth }     from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
-import { formatCurrency, formatCurrencyFull, cn } from '../../lib/utils'
+import { formatCurrency, formatCurrencyFull, formatDate, cn } from '../../lib/utils'
+import { exportPDF }   from '../../lib/exportUtils'
 import {
   mockDailySummary, mockDailyShifts, mockHourlyOutput,
   mockMachineOutput, mockTopPerformers, mockEODTimeline,
@@ -80,8 +83,13 @@ function ProgressRing({ pct, size = 64, stroke = 6, color = '#6366f1' }) {
 /* ─── main component ──────────────────────────────────────────────────── */
 export default function EODDashboard() {
   const { user }    = useAuth()
+  const toast       = useToast()
   const s           = mockDailySummary
-  const [activeShift, setActiveShift] = useState('Morning')
+  const [activeShift, setActiveShift]   = useState('Morning')
+  const [refreshing, setRefreshing]     = useState(false)
+  const [exporting, setExporting]       = useState(false)
+  const [shareOpen, setShareOpen]       = useState(false)
+  const [reportOpen, setReportOpen]     = useState(false)
   const shift       = mockDailyShifts.find(sh => sh.shift === activeShift)
 
   const achievePct  = Math.round((s.totalOutput / s.totalTarget) * 100)
@@ -91,6 +99,56 @@ export default function EODDashboard() {
   const today = new Date().toLocaleDateString('en-IN', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
+
+  // ── Refresh ──────────────────────────────────────────────────────────────
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true)
+    setTimeout(() => {
+      setRefreshing(false)
+      toast('EOD data refreshed', 'success')
+    }, 1200)
+  }, [toast])
+
+  // ── Export PDF ───────────────────────────────────────────────────────────
+  const handleExportPDF = useCallback(async () => {
+    setExporting(true)
+    toast('Generating PDF…', 'info', 2500)
+    try {
+      await exportPDF({
+        title: 'End-of-Day Report',
+        subtitle: today,
+        filename: `EOD_Report_${s.date}`,
+        columns: ['Metric', 'Value', 'Target / Note'],
+        rows: [
+          ['Total Output',    `${s.totalOutput.toLocaleString()} m`,  `Target: ${s.totalTarget.toLocaleString()} m (${achievePct}%)`],
+          ['Rolls Produced',  String(s.rollsProduced),                `Passed: ${s.rollsPassed} · Rework: ${s.rollsRework} · Rejected: ${s.rollsRejected}`],
+          ['Quality Pass Rate', `${passRate}%`,                       `Defects found: ${s.defectsFound}`],
+          ['Attendance',      `${s.totalPresent} / ${s.totalWorkers}`,`Absent: ${s.totalAbsent} · OT: ${s.overtimeHrs} hrs`],
+          ['Machine Uptime',  `${s.machineUptime}%`,                  `Downtime: ${s.downtimeMins} min (${s.downtimeMachine})`],
+          ['Est. Revenue',    formatCurrencyFull(s.estimatedRevenue), `Cost: ${formatCurrencyFull(s.estimatedCost)}`],
+          ['Est. Profit',     formatCurrencyFull(s.estimatedProfit),  ''],
+          ['Dispatches',      String(s.dispatchesToday),              `${s.metresDispatched.toLocaleString()} m · Invoice: ${formatCurrencyFull(s.invoiceValue)}`],
+          ['Stock Warnings',  String(s.stockWarnings),                'Items below reorder level'],
+          ['Top Defect',      s.topDefect,                            ''],
+        ],
+      })
+      toast('PDF downloaded successfully', 'success')
+    } catch {
+      toast('PDF export failed', 'error')
+    } finally {
+      setExporting(false)
+    }
+  }, [s, today, achievePct, passRate, toast])
+
+  // ── Share (copy link) ─────────────────────────────────────────────────────
+  const handleCopyLink = useCallback(() => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => {
+        toast('Link copied to clipboard', 'success')
+        setShareOpen(false)
+      })
+      .catch(() => toast('Could not copy link', 'error'))
+  }, [toast])
 
   return (
     <div className="page-root">
@@ -107,11 +165,21 @@ export default function EODDashboard() {
         }
         actions={
           <div className="flex items-center gap-2">
-            <button className="btn-secondary btn-sm gap-1.5">
-              <Download size={13} />Export PDF
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="btn-secondary btn-sm gap-1.5"
+            >
+              <Download size={13} className={exporting ? 'animate-bounce' : ''} />
+              {exporting ? 'Generating…' : 'Export PDF'}
             </button>
-            <button className="btn-ghost btn-sm gap-1.5">
-              <RefreshCw size={13} />Refresh
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="btn-ghost btn-sm gap-1.5"
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
         }
@@ -500,15 +568,87 @@ export default function EODDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn-primary btn-sm gap-1.5">
+            <button
+              onClick={() => setReportOpen(true)}
+              className="btn-primary btn-sm gap-1.5"
+            >
               <FileText size={13} />Full Report
             </button>
-            <button className="btn-secondary btn-sm gap-1.5">
+            <button
+              onClick={() => setShareOpen(true)}
+              className="btn-secondary btn-sm gap-1.5"
+            >
               Share <ArrowRight size={13} />
             </button>
           </div>
         </div>
       </div>
+
+      {/* ── Full Report Modal ── */}
+      <Modal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        title="Full Day Report"
+        description={today}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: 'Total Output',      value: `${s.totalOutput.toLocaleString()} m`,   sub: `${achievePct}% of target` },
+              { label: 'Quality Pass Rate', value: `${passRate}%`,                           sub: `${s.rollsPassed}/${s.rollsProduced} rolls` },
+              { label: 'Attendance',        value: `${attendPct}%`,                          sub: `${s.totalPresent}/${s.totalWorkers} workers` },
+              { label: 'Machine Uptime',    value: `${s.machineUptime}%`,                    sub: `${s.downtimeMins} min downtime` },
+              { label: 'Est. Revenue',      value: formatCurrencyFull(s.estimatedRevenue),   sub: `Cost: ${formatCurrencyFull(s.estimatedCost)}` },
+              { label: 'Est. Profit',       value: formatCurrencyFull(s.estimatedProfit),    sub: 'After operating costs' },
+            ].map(({ label, value, sub }) => (
+              <div key={label} className="bg-zinc-800/50 rounded-xl p-3">
+                <p className="text-2xs text-zinc-500 uppercase tracking-wide mb-1">{label}</p>
+                <p className="text-base font-bold text-zinc-100">{value}</p>
+                <p className="text-2xs text-zinc-600 mt-0.5">{sub}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={async () => { setReportOpen(false); await handleExportPDF() }}
+              className="btn-primary btn-sm flex-1 justify-center gap-1.5"
+              disabled={exporting}
+            >
+              <Download size={13} /> {exporting ? 'Generating…' : 'Download PDF'}
+            </button>
+            <button onClick={() => setReportOpen(false)} className="btn-secondary btn-sm">
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Share Modal ── */}
+      <Modal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title="Share EOD Report"
+        description="Copy the link to this report"
+        size="xs"
+      >
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 bg-zinc-800 rounded-xl px-3 py-2 border border-zinc-700">
+            <span className="text-xs text-zinc-400 flex-1 truncate">{window.location.href}</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopyLink}
+              className="btn-primary btn-sm flex-1 justify-center"
+            >
+              Copy Link
+            </button>
+            <button onClick={() => setShareOpen(false)} className="btn-secondary btn-sm">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

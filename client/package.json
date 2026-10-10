@@ -14,8 +14,8 @@
     "axios": "^1.20.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
-    "jspdf": "^2.5.2",
-    "jspdf-autotable": "5.0.8",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.447.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -23,7 +23,7 @@
     "react-router-dom": "^6.30.6",
     "recharts": "^2.15.4",
     "tailwind-merge": "^2.6.1",
-    "xlsx": "0.18.5",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {
