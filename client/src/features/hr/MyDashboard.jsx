@@ -11,6 +11,7 @@ import {
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { useAuth }     from '../../context/AuthContext'
 import { formatCurrencyFull, cn } from '../../lib/utils'
+import QRCode from 'react-qr-code'
 
 const ATTENDANCE_LABELS = {
   P: { label: 'Present', color: 'bg-emerald-500', border: 'border-emerald-500/20 text-emerald-400 bg-emerald-500/10' },
@@ -261,13 +262,6 @@ export default function MyDashboard() {
               <QRCode value={profile.id} size={70} />
             </div>
           </div>
-                  <>
-                    <span className="text-zinc-700">·</span>
-                    <span className="text-xs text-zinc-500 font-mono">{profile.machine}</span>
-                  </>
-                )}
-              </div>
-            </div>
 
             {/* Today's status chip */}
             <div className={cn(
