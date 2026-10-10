@@ -4,9 +4,9 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import {
-  Users, CheckCircle2, XCircle, Clock, DollarSign, TrendingUp,
-  TrendingDown, Calendar, Zap, AlertTriangle, Search,
-  ChevronRight, Download, UserCheck, Banknote, Award,
+  Users, CheckCircle2, Clock,
+  Calendar, Search,
+  ChevronRight, Download, UserCheck, Banknote,
 } from 'lucide-react'
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { Modal }       from '../../components/ui/Modal'
@@ -19,14 +19,7 @@ import {
 } from '../../mocks/data'
 
 /* ─── constants ──────────────────────────────────────────────────────────── */
-const MONTH_DAYS = 30   // Sep 2026
 const MONTH_LABEL = 'October 2026'
-
-const DEPT_COLORS = {
-  Production: 'from-primary-500 to-violet-600',
-  QC:         'from-amber-500 to-orange-600',
-  Store:      'from-cyan-500 to-blue-600',
-}
 
 /* ─── small helpers ─────────────────────────────────────────────────────── */
 const ChartTip = ({ active, payload, label }) => {
@@ -41,18 +34,6 @@ const ChartTip = ({ active, payload, label }) => {
             : p.value}
         </p>
       ))}
-    </div>
-  )
-}
-
-function StatPill({ icon: Icon, value, label, color = 'text-zinc-50', bg = 'bg-zinc-800/60' }) {
-  return (
-    <div className={cn('flex items-center gap-3 px-4 py-3 rounded-2xl', bg)}>
-      <Icon size={16} className={color} />
-      <div>
-        <p className={cn('text-lg font-bold leading-none', color)}>{value}</p>
-        <p className="text-2xs text-zinc-600 mt-0.5">{label}</p>
-      </div>
     </div>
   )
 }

@@ -91,7 +91,7 @@ const ROLE_COLORS = {
 export function Sidebar({ open, onClose }) {
   const { user, logout, hasRole } = useAuth()
   const navigate = useNavigate()
-  const handleLogout = () => { logout(); navigate('/login') }
+  const handleLogout = () => { logout(); navigate('/') }
 
   return (
     <>

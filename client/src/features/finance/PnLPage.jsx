@@ -1,7 +1,9 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { PageHeader }         from '../../components/ui/PageHeader'
+import { ExportMenu }         from '../../components/ui/ExportMenu'
 import { mockRevenueData }    from '../../mocks/data'
 import { formatCurrencyFull } from '../../lib/utils'
+import { exportPDF, exportExcel } from '../../lib/exportUtils'
 
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -17,14 +19,34 @@ const ChartTip = ({ active, payload, label }) => {
   )
 }
 
+const PNL_COLUMNS = ['Month', 'Revenue (₹)', 'Cost (₹)', 'Gross Profit (₹)', 'Margin %']
+
 export default function PnLPage() {
   const data = mockRevenueData.map(d => ({ ...d, profit: d.revenue - d.cost }))
   const last = data[data.length - 1]
   const marginPct = ((last.profit / last.revenue) * 100).toFixed(1)
 
+  const buildRows = () => data.map(d => [
+    `${d.month} 2026`,
+    d.revenue,
+    d.cost,
+    d.profit,
+    `${((d.profit / d.revenue) * 100).toFixed(1)}%`,
+  ])
+
+  const handleExportPDF = () => exportPDF({
+    title: 'Monthly P&L', subtitle: 'Profit and loss — last 6 months',
+    columns: PNL_COLUMNS, rows: buildRows(), filename: 'PnL_Report',
+  })
+  const handleExportExcel = () => exportExcel({
+    filename: 'PnL_Report', sheetName: 'P&L', columns: PNL_COLUMNS, rows: buildRows(),
+  })
+
   return (
     <div className="page-root">
-      <PageHeader title="Monthly P&L" subtitle="Profit and loss — last 6 months" />
+      <PageHeader title="Monthly P&L" subtitle="Profit and loss — last 6 months"
+        actions={<ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />}
+      />
 
       <div className="grid grid-cols-3 gap-4">
         {[

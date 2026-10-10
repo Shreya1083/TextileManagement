@@ -4,9 +4,9 @@ import {
   ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import {
-  CheckCircle2, XCircle, Clock, DollarSign, Calendar,
-  Banknote, Award, TrendingUp, Zap, Download,
-  UserCheck, Star, ChevronRight,
+  CheckCircle2, XCircle, Clock,
+  Banknote, TrendingUp, Zap, Download,
+  UserCheck,
 } from 'lucide-react'
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { useAuth }     from '../../context/AuthContext'

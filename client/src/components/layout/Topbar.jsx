@@ -128,7 +128,7 @@ export function Topbar({ onMenuClick }) {
   const handleLogout = () => {
     setShowUser(false)
     logout()
-    navigate('/login')
+    navigate('/')
   }
 
   return (

@@ -1,6 +1,8 @@
-import { PageHeader } from '../../components/ui/PageHeader'
-import { Badge }      from '../../components/ui/Badge'
+import { PageHeader }  from '../../components/ui/PageHeader'
+import { Badge }       from '../../components/ui/Badge'
+import { ExportMenu }  from '../../components/ui/ExportMenu'
 import { formatCurrencyFull } from '../../lib/utils'
+import { exportPDF, exportExcel } from '../../lib/exportUtils'
 
 const mockCosting = [
   { order:'ORD-2023', buyer:'Sharma Fabrics',  fabric:'Cotton Poplin', qty:900,  material:45000,  labour:18000, overhead:9000,  total:72000,  invoice:94500,  profit:22500, profitPct:23.8, status:'DISPATCHED'   },
@@ -8,10 +10,30 @@ const mockCosting = [
   { order:'ORD-2022', buyer:'Mehta Textiles',  fabric:'Rayon Crepe',   qty:600,  material:42000,  labour:15600, overhead:7800,  total:65400,  invoice:84000,  profit:18600, profitPct:22.1, status:'IN_PRODUCTION'  },
 ]
 
+const COLUMNS = ['Order', 'Buyer', 'Fabric', 'Qty (m)', 'Material (₹)', 'Labour (₹)', 'Overhead (₹)', 'Total Cost (₹)', 'Invoice (₹)', 'Profit (₹)', 'Margin %', 'Status']
+
+function buildRows() {
+  return mockCosting.map(c => [
+    c.order, c.buyer, c.fabric, c.qty,
+    c.material, c.labour, c.overhead, c.total,
+    c.invoice, c.profit, `${c.profitPct}%`, c.status,
+  ])
+}
+
 export default function CostingPage() {
+  const handleExportPDF = () => exportPDF({
+    title: 'Order Costing', subtitle: 'Material + Labour + Overhead per order',
+    columns: COLUMNS, rows: buildRows(), filename: 'OrderCosting',
+  })
+  const handleExportExcel = () => exportExcel({
+    filename: 'OrderCosting', sheetName: 'Costing', columns: COLUMNS, rows: buildRows(),
+  })
+
   return (
     <div className="page-root">
-      <PageHeader title="Order Costing" subtitle="Material + Labour + Overhead analysis per order" />
+      <PageHeader title="Order Costing" subtitle="Material + Labour + Overhead analysis per order"
+        actions={<ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />}
+      />
       <div className="table-wrap">
         <table className="table-base">
           <thead><tr><th>Order</th><th>Buyer</th><th>Fabric</th><th>Qty</th><th>Material</th><th>Labour</th><th>Overhead</th><th>Total Cost</th><th>Invoice</th><th>Profit</th><th>Margin</th><th>Status</th></tr></thead>

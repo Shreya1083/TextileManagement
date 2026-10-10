@@ -1,13 +1,29 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts'
 import { PageHeader }     from '../../components/ui/PageHeader'
+import { ExportMenu }     from '../../components/ui/ExportMenu'
 import { mockDefectReport, mockQualityData } from '../../mocks/data'
+import { exportPDF, exportExcel } from '../../lib/exportUtils'
 
 const COLORS = ['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#64748b']
+const COLUMNS = ['Defect Type', 'Count', 'Share %']
 
 export default function DefectReport() {
+  const handleExportPDF = () => exportPDF({
+    title: 'Defect Report', subtitle: 'Quality defect analysis by type',
+    columns: COLUMNS,
+    rows: mockDefectReport.map(d => [d.type, d.count, `${d.pct}%`]),
+    filename: 'DefectReport',
+  })
+  const handleExportExcel = () => exportExcel({
+    filename: 'DefectReport', sheetName: 'Defects',
+    columns: COLUMNS,
+    rows: mockDefectReport.map(d => [d.type, d.count, d.pct]),
+  })
   return (
     <div className="page-root">
-      <PageHeader title="Defect Reports" subtitle="Quality defect analysis by type, machine and order" />
+      <PageHeader title="Defect Reports" subtitle="Quality defect analysis by type, machine and order"
+        actions={<ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />}
+      />
       <div className="grid grid-cols-3 gap-4">
         {mockQualityData.map(d => (
           <div key={d.name} className="card p-5 flex items-center gap-4">
