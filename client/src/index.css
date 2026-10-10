@@ -166,10 +166,12 @@
   }
   .table-head { @apply section-header; }
   .table-base { @apply w-full text-sm; }
-  .table-base thead { @apply border-b border-zinc-800/80; }
+  .table-base thead {
+    @apply bg-zinc-800/70 border-b-2 border-primary-500/30;
+  }
   .table-base thead th {
-    @apply px-5 py-3 text-left text-2xs font-semibold text-zinc-500
-           uppercase tracking-widest first:rounded-tl-2xl last:rounded-tr-2xl;
+    @apply px-5 py-4 text-left text-sm font-extrabold text-zinc-100
+           uppercase tracking-wider first:rounded-tl-2xl last:rounded-tr-2xl;
   }
   .table-base tbody tr {
     @apply border-b border-zinc-800/40 transition-colors duration-100

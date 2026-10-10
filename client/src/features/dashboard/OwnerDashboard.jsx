@@ -19,7 +19,7 @@ import {
   mockStats, mockRevenueData, mockProductionData, mockQualityData,
   mockOrders, mockAlerts, mockMachines,
 } from '../../mocks/data'
-import { Link } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 
 /* ── Chart tooltip ─────────────────────────────────────────────────────── */
 const ChartTip = ({ active, payload, label }) => {
@@ -95,9 +95,6 @@ export default function OwnerDashboard() {
         subtitle={`${ROLE_LABELS[user?.role] || user?.role} · ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
         actions={
           <div className="flex items-center gap-2">
-            <Link to="/eod" className="btn-secondary btn-sm gap-1.5">
-              <CalendarCheck size={13} />EOD Report
-            </Link>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -114,6 +111,50 @@ export default function OwnerDashboard() {
           </div>
         }
       />
+
+      {/* ── Subheader Tabs ── */}
+      <div className="flex items-center gap-1 p-1 bg-zinc-900 border border-zinc-800/80 rounded-xl w-fit">
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+              isActive
+                ? 'bg-primary-500/15 text-primary-300 border border-primary-500/30'
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
+            }`
+          }
+        >
+          <Activity size={14} />
+          Dashboard
+        </NavLink>
+        <NavLink
+          to="/floor"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+              isActive
+                ? 'bg-primary-500/15 text-primary-300 border border-primary-500/30'
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
+            }`
+          }
+        >
+          <Factory size={14} />
+          Floor Monitor
+        </NavLink>
+        <NavLink
+          to="/eod"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+              isActive
+                ? 'bg-primary-500/15 text-primary-300 border border-primary-500/30'
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
+            }`
+          }
+        >
+          <CalendarCheck size={14} />
+          End-of-Day Report
+        </NavLink>
+      </div>
+
 
       {/* ── Primary KPIs ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -194,8 +235,8 @@ export default function OwnerDashboard() {
               <c.icon size={18} className={c.iconClr} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xl font-bold text-zinc-50">{c.value}</p>
-              <p className="text-xs font-semibold text-zinc-400 mt-0.5">{c.label}</p>
+              <p className="text-sm font-bold text-zinc-200">{c.label}</p>
+              <p className="text-base font-semibold text-zinc-50 mt-0.5">{c.value}</p>
               {c.sub && <p className="text-2xs text-zinc-600 mt-0.5">{c.sub}</p>}
             </div>
             <ArrowRight size={14} className="text-zinc-700 group-hover:text-primary-400 transition-colors shrink-0" />

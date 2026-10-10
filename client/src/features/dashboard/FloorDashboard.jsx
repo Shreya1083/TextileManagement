@@ -165,8 +165,8 @@ export default function FloorDashboard() {
               <c.icon size={18} className={c.clr} />
             </div>
             <div>
-              <p className="text-xl font-bold text-zinc-50">{c.val}</p>
-              <p className="text-xs font-semibold text-zinc-400">{c.lbl}</p>
+              <p className="text-sm font-bold text-zinc-200">{c.lbl}</p>
+              <p className="text-base font-semibold text-zinc-50 mt-0.5">{c.val}</p>
               <p className="text-2xs text-zinc-600 mt-0.5">{c.sub}</p>
             </div>
           </button>

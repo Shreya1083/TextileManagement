@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Search, AlertTriangle, Plus } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -32,6 +33,7 @@ function StockBar({ current, reserved, reorder }) {
 
 export default function StockPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const filtered = mockYarnStock.filter(y =>
     y.type.toLowerCase().includes(search.toLowerCase()) ||
@@ -55,22 +57,12 @@ export default function StockPage() {
         actions={
           <div className="flex gap-2">
             <ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
-            <button className="btn-primary btn-sm"><Plus size={14} />Add GRN</button>
+            <button className="btn-primary btn-sm" onClick={() => navigate('/inventory/gate-entries')}><Plus size={14} />Add GRN</button>
           </div>
         }
       />
 
-      {lowCount > 0 && (
-        <div className="flex items-start gap-3 px-4 py-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl">
-          <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
-            <AlertTriangle size={14} className="text-amber-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-amber-300">{lowCount} items below reorder level</p>
-            <p className="text-xs text-amber-500/80 mt-0.5">Raise purchase orders to avoid production delays.</p>
-          </div>
-        </div>
-      )}
+
 
       <div className="table-wrap">
         <div className="table-head">

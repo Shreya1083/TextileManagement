@@ -66,11 +66,6 @@ export default function InspectionQueue() {
       <PageHeader
         title="Inspection Queue"
         subtitle={`Inspector: ${user?.name} · ${queue.length} rolls awaiting QC`}
-        actions={
-          <button className="btn-secondary btn-sm" onClick={handleScan}>
-            <ScanLine size={13} />Scan Roll QR
-          </button>
-        }
       />
 
       <div className="table-wrap">

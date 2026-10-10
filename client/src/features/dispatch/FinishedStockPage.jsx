@@ -8,9 +8,7 @@ export default function FinishedStockPage() {
   const stock = mockRolls.filter(r => r.status === 'PASSED')
   return (
     <div className="page-root">
-      <PageHeader title="Finished Goods" subtitle={`${stock.length} rolls ready for dispatch`}
-        actions={<button className="btn-secondary btn-sm"><ScanLine size={13} />Scan Roll</button>}
-      />
+      <PageHeader title="Finished Goods" subtitle={`${stock.length} rolls ready for dispatch`} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label:'Rolls in Stock', value:stock.length,                              color:'text-zinc-50' },

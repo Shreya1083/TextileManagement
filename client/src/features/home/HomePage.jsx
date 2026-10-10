@@ -2,6 +2,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   Package, Factory, QrCode, ClipboardCheck, Truck,
   Users, BarChart3, ChevronRight, Layers, ArrowRight,
+  Mail, Phone, MapPin, Linkedin, Twitter, Instagram, Facebook,
 } from 'lucide-react'
 import PublicHeader from '../../components/layout/PublicHeader'
 import heroImg from '../../assets/hero.png'
@@ -233,10 +234,10 @@ export default function HomePage() {
         {/* ── Footer / Contact ── */}
         <footer id="contact" className="bg-zinc-900 border-t border-zinc-800/60">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-10">
 
               {/* Brand */}
-              <div className="max-w-xs">
+              <div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="relative w-9 h-9 shrink-0">
                     <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary-500 to-violet-600" />
@@ -254,20 +255,96 @@ export default function HomePage() {
                 </p>
               </div>
 
+              {/* Contact Info */}
+              <div>
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4">Contact Info</p>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2.5">
+                    <Mail size={14} className="text-primary-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-0.5">Email</p>
+                      <a href="mailto:info@everesttextile.com" className="text-sm text-zinc-300 hover:text-primary-400 transition-colors">
+                        info@everesttextile.com
+                      </a>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Phone size={14} className="text-primary-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-0.5">Phone</p>
+                      <a href="tel:+919876543210" className="text-sm text-zinc-300 hover:text-primary-400 transition-colors">
+                        +91 98765 43210
+                      </a>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <MapPin size={14} className="text-primary-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-0.5">Address</p>
+                      <p className="text-sm text-zinc-300 leading-relaxed">
+                        Plot No. 42, Industrial Area,<br />Surat, Gujarat 395010, India
+                      </p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
               {/* Nav links */}
-              <nav className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Platform</p>
+              <div>
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4">Platform</p>
+                <nav className="space-y-2.5">
                   <Link to="/" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Home</Link>
                   <a href="#features" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Features</a>
                   <a href="#about" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">About</a>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Access</p>
                   <Link to="/signin" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Sign In</Link>
-                  <Link to="/login" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Legacy Login</Link>
+                </nav>
+              </div>
+
+              {/* Social Media */}
+              <div>
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4">Follow Us</p>
+                <div className="flex items-center gap-3 mb-4">
+                  <a
+                    href="https://linkedin.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400 hover:text-primary-400 hover:border-primary-500/40 hover:bg-primary-500/10 transition-all duration-200"
+                    aria-label="LinkedIn"
+                  >
+                    <Linkedin size={16} />
+                  </a>
+                  <a
+                    href="https://twitter.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400 hover:text-primary-400 hover:border-primary-500/40 hover:bg-primary-500/10 transition-all duration-200"
+                    aria-label="Twitter"
+                  >
+                    <Twitter size={16} />
+                  </a>
+                  <a
+                    href="https://instagram.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400 hover:text-primary-400 hover:border-primary-500/40 hover:bg-primary-500/10 transition-all duration-200"
+                    aria-label="Instagram"
+                  >
+                    <Instagram size={16} />
+                  </a>
+                  <a
+                    href="https://facebook.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400 hover:text-primary-400 hover:border-primary-500/40 hover:bg-primary-500/10 transition-all duration-200"
+                    aria-label="Facebook"
+                  >
+                    <Facebook size={16} />
+                  </a>
                 </div>
-              </nav>
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Stay connected for updates, industry insights, and product announcements.
+                </p>
+              </div>
             </div>
 
             <div className="border-t border-zinc-800/60 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">

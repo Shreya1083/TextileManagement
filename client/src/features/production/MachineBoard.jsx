@@ -69,9 +69,6 @@ export default function MachineBoard() {
         subtitle={`Supervised by ${user?.name} · Machine status and work assignments`}
         actions={
           <div className="flex gap-2">
-            <button className="btn-secondary btn-sm" onClick={() => toast('Manage feature coming soon', 'info')}>
-              <Wrench size={13} />Manage
-            </button>
             <button className="btn-primary btn-sm" onClick={() => { setAssignForm(BLANK_ASSIGN); setAssignErrors({}); setShowAssign(true) }}>
               <Plus size={13} />Assign
             </button>

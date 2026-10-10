@@ -212,9 +212,9 @@ export default function EODDashboard() {
 
             {/* Rolls */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Rolls Today</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Rolls Today</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xl font-bold text-zinc-50">{s.rollsProduced}</span>
+                <span className="text-base font-semibold text-zinc-50">{s.rollsProduced}</span>
                 <span className="text-xs text-zinc-600">produced</span>
               </div>
               <div className="flex items-center gap-3 text-xs">
@@ -226,9 +226,9 @@ export default function EODDashboard() {
 
             {/* Workforce */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Workforce</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Workforce</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xl font-bold text-zinc-50">{s.totalPresent}</span>
+                <span className="text-base font-semibold text-zinc-50">{s.totalPresent}</span>
                 <span className="text-xs text-zinc-600">/ {s.totalWorkers}</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400">
@@ -241,9 +241,9 @@ export default function EODDashboard() {
 
             {/* Machine uptime */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Machine Uptime</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Machine Uptime</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xl font-bold text-zinc-50">{s.machineUptime}%</span>
+                <span className="text-base font-semibold text-zinc-50">{s.machineUptime}%</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-red-400">
                 <AlertTriangle size={11} />{s.downtimeEvents} breakdown
@@ -253,9 +253,9 @@ export default function EODDashboard() {
 
             {/* Revenue */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Est. Revenue</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Est. Revenue</p>
               <div className="mt-1">
-                <span className="text-xl font-bold text-emerald-400">{formatCurrency(s.estimatedRevenue)}</span>
+                <span className="text-base font-semibold text-emerald-400">{formatCurrency(s.estimatedRevenue)}</span>
               </div>
               <p className="text-2xs text-zinc-600">Cost: {formatCurrency(s.estimatedCost)}</p>
               <p className="text-xs text-emerald-400 font-semibold">+{formatCurrency(s.estimatedProfit)} profit</p>
@@ -263,9 +263,9 @@ export default function EODDashboard() {
 
             {/* Dispatch */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Dispatches</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Dispatches</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xl font-bold text-zinc-50">{s.dispatchesToday}</span>
+                <span className="text-base font-semibold text-zinc-50">{s.dispatchesToday}</span>
                 <span className="text-xs text-zinc-600">today</span>
               </div>
               <p className="text-xs text-zinc-300">{s.metresDispatched.toLocaleString()} m shipped</p>
