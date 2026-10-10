@@ -135,3 +135,127 @@ export const mockInvoices = [
   { id: 'INV-1043', buyer: 'Sunrise Mills',  dispatch: 'DSP-0086', amount: 85_000,   paid: 0,        balance: 85_000,  status: 'UNPAID',   date: '2026-10-05' },
   { id: 'INV-1042', buyer: 'Sharma Fabrics', dispatch: 'DSP-0082', amount: 1_68_000, paid: 0,        balance: 1_68_000, status: 'OVERDUE',  date: '2026-09-20' },
 ]
+
+// ─── End-of-Day / Daily Summary Data ────────────────────────────────────────
+
+export const mockDailyShifts = [
+  {
+    shift: 'Morning',   time: '06:00 – 14:00',
+    workers: 18, present: 17, absent: 1,
+    output: 3120, target: 3200, waste: 48,
+    rollsProduced: 14, rollsPassed: 12, rollsRework: 1, rollsRejected: 1,
+    machinesRunning: 8, machinesIdle: 2, machinesBreakdown: 1,
+  },
+  {
+    shift: 'Afternoon', time: '14:00 – 22:00',
+    workers: 16, present: 15, absent: 1,
+    output: 2940, target: 3000, waste: 36,
+    rollsProduced: 13, rollsPassed: 12, rollsRework: 1, rollsRejected: 0,
+    machinesRunning: 7, machinesIdle: 3, machinesBreakdown: 1,
+  },
+  {
+    shift: 'Night',     time: '22:00 – 06:00',
+    workers: 12, present: 12, absent: 0,
+    output: 2180, target: 2400, waste: 29,
+    rollsProduced: 9,  rollsPassed: 8,  rollsRework: 1, rollsRejected: 0,
+    machinesRunning: 6, machinesIdle: 4, machinesBreakdown: 1,
+  },
+]
+
+export const mockDailySummary = {
+  date: '2026-10-10',
+  // Production
+  totalOutput:      8240,    // metres
+  totalTarget:      8600,
+  totalWaste:       113,
+  achievementPct:   95.8,
+  rollsProduced:    36,
+  rollsPassed:      32,
+  rollsRework:      3,
+  rollsRejected:    1,
+  // Quality
+  passRate:         88.9,
+  defectsFound:     12,
+  topDefect:        'Colour Mismatch',
+  // Workforce
+  totalWorkers:     46,
+  totalPresent:     44,
+  totalAbsent:      2,
+  attendancePct:    95.7,
+  overtimeHrs:      14,
+  // Machines
+  machineUptime:    78.8,    // %
+  downtimeEvents:   1,
+  downtimeMachine:  'M-07 (Dyer C2)',
+  downtimeMins:     340,
+  // Inventory
+  yarnConsumed:     { Cotton40s: 210, Poly150D: 165, DyeingChemicals: 38 }, // kg
+  stockWarnings:    3,
+  // Finance
+  estimatedRevenue: 2_06_000,  // based on output × avg rate
+  estimatedCost:    1_41_500,
+  estimatedProfit:  64_500,
+  // Dispatches
+  dispatchesToday:  1,
+  metresDispatched: 458,
+  invoicesRaised:   1,
+  invoiceValue:     1_14_500,
+}
+
+export const mockHourlyOutput = [
+  { hour: '06', output: 420, target: 450 },
+  { hour: '07', output: 465, target: 450 },
+  { hour: '08', output: 490, target: 450 },
+  { hour: '09', output: 440, target: 450 },
+  { hour: '10', output: 510, target: 450 },
+  { hour: '11', output: 485, target: 450 },
+  { hour: '12', output: 430, target: 450 },
+  { hour: '13', output: 395, target: 450 },  // lunch dip
+  { hour: '14', output: 455, target: 450 },
+  { hour: '15', output: 470, target: 450 },
+  { hour: '16', output: 480, target: 450 },
+  { hour: '17', output: 420, target: 450 },
+  { hour: '18', output: 390, target: 450 },
+  { hour: '19', output: 350, target: 450 },  // breakdown window
+  { hour: '20', output: 360, target: 450 },
+  { hour: '21', output: 370, target: 450 },
+  { hour: '22', output: 315, target: 380 },
+  { hour: '23', output: 290, target: 380 },
+]
+
+export const mockMachineOutput = [
+  { machine: 'M-01', name: 'Spinner A1',  output: 320, target: 350, status: 'RUNNING',   eff: 91.4 },
+  { machine: 'M-02', name: 'Spinner A2',  output: 290, target: 350, status: 'RUNNING',   eff: 82.9 },
+  { machine: 'M-03', name: 'Weaver B1',   output: 410, target: 400, status: 'RUNNING',   eff: 102.5 },
+  { machine: 'M-04', name: 'Weaver B2',   output: 0,   target: 400, status: 'IDLE',      eff: 0 },
+  { machine: 'M-05', name: 'Weaver B3',   output: 380, target: 400, status: 'RUNNING',   eff: 95.0 },
+  { machine: 'M-06', name: 'Dyer C1',     output: 250, target: 280, status: 'RUNNING',   eff: 89.3 },
+  { machine: 'M-07', name: 'Dyer C2',     output: 0,   target: 280, status: 'BREAKDOWN', eff: 0 },
+  { machine: 'M-08', name: 'Finisher D1', output: 190, target: 220, status: 'RUNNING',   eff: 86.4 },
+  { machine: 'M-09', name: 'Finisher D2', output: 0,   target: 220, status: 'IDLE',      eff: 0 },
+  { machine: 'M-10', name: 'Spinner A3',  output: 270, target: 350, status: 'RUNNING',   eff: 77.1 },
+  { machine: 'M-11', name: 'Weaver B4',   output: 360, target: 400, status: 'RUNNING',   eff: 90.0 },
+]
+
+export const mockTopPerformers = [
+  { rank: 1, name: 'Anil Verma',    role: 'Weaver',   machine: 'M-03', output: 410, badge: '🥇' },
+  { rank: 2, name: 'Vijay Nair',    role: 'Weaver',   machine: 'M-11', output: 360, badge: '🥈' },
+  { rank: 3, name: 'Ravi Mehta',    role: 'Weaver',   machine: 'M-05', output: 380, badge: '🥉' },
+  { rank: 4, name: 'Mohan Kumar',   role: 'Spinner',  machine: 'M-01', output: 320, badge: '' },
+  { rank: 5, name: 'Sanjay Tiwari', role: 'Dyer',     machine: 'M-06', output: 250, badge: '' },
+]
+
+export const mockEODTimeline = [
+  { time: '06:00', event: 'Morning shift started',           type: 'info',    icon: 'shift' },
+  { time: '07:15', event: 'GRN received: Poly 150D (200 kg) from Krishna Fibers', type: 'success', icon: 'stock' },
+  { time: '09:42', event: 'ORD-2026 moved to Quality Check', type: 'info',    icon: 'order' },
+  { time: '11:30', event: 'M-07 (Dyer C2) breakdown logged', type: 'danger',  icon: 'breakdown' },
+  { time: '12:00', event: 'Cotton 60s dropped below reorder level', type: 'warning', icon: 'stock' },
+  { time: '14:00', event: 'Afternoon shift started',          type: 'info',    icon: 'shift' },
+  { time: '15:20', event: '12 rolls passed QC (ORD-2026)',    type: 'success', icon: 'quality' },
+  { time: '16:45', event: 'Dispatch DSP-0088 confirmed — Patel Exports', type: 'success', icon: 'dispatch' },
+  { time: '17:10', event: 'Invoice INV-1045 raised (₹1,14,500)', type: 'success', icon: 'invoice' },
+  { time: '18:30', event: 'ORD-2024 deadline alert — still in production', type: 'danger', icon: 'order' },
+  { time: '22:00', event: 'Night shift started',              type: 'info',    icon: 'shift' },
+  { time: '23:55', event: 'Day closed — 8,240 m total output', type: 'info',   icon: 'close' },
+]

@@ -13,6 +13,7 @@ import { NotFound, Forbidden } from './features/auth/NotFound'
 // Dashboards
 import OwnerDashboard   from './features/dashboard/OwnerDashboard'
 import FloorDashboard   from './features/dashboard/FloorDashboard'
+import EODDashboard     from './features/dashboard/EODDashboard'
 
 // Inventory
 import StockPage          from './features/inventory/StockPage'
@@ -75,6 +76,7 @@ export default function App() {
             {/* Dashboards */}
             <Route path="/dashboard" element={<OwnerDashboard />} />
             <Route path="/floor"     element={<FloorDashboard />} />
+            <Route path="/eod"       element={<EODDashboard />} />
 
             {/* Inventory */}
             <Route path="/inventory/stock"           element={<StockPage />} />

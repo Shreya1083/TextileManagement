@@ -6,15 +6,16 @@ import {
   LayoutDashboard, Factory, Package, ShoppingCart, Cog, Eye,
   Truck, FileText, Users, DollarSign, Settings, LogOut,
   Sparkles, BarChart3, ClipboardCheck, Boxes, UserCheck,
-  AlertTriangle, X, Layers, Wallet,
+  AlertTriangle, X, Layers, Wallet, CalendarCheck,
 } from 'lucide-react'
 
 const NAV = [
   {
     group: 'Overview',
     items: [
-      { to: '/dashboard', label: 'Dashboard',    icon: LayoutDashboard, roles: ['owner'] },
-      { to: '/floor',     label: 'Floor Monitor', icon: Factory,         roles: ['owner','supervisor','inspector'] },
+      { to: '/dashboard', label: 'Dashboard',        icon: LayoutDashboard, roles: ['owner'] },
+      { to: '/floor',     label: 'Floor Monitor',     icon: Factory,         roles: ['owner','supervisor','inspector'] },
+      { to: '/eod',       label: 'End-of-Day Report', icon: CalendarCheck,   roles: ['owner','supervisor','accounts'] },
     ],
   },
   {

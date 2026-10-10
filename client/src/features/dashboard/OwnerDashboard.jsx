@@ -4,7 +4,7 @@ import {
 } from 'recharts'
 import {
   DollarSign, Package, Factory, CheckCircle, AlertTriangle,
-  Clock, TrendingUp, Zap, ArrowRight, Activity,
+  Clock, TrendingUp, Zap, ArrowRight, Activity, CalendarCheck,
 } from 'lucide-react'
 import { StatCard }    from '../../components/ui/StatCard'
 import { Badge }       from '../../components/ui/Badge'
@@ -59,10 +59,15 @@ export default function OwnerDashboard() {
         title={`${greeting()}, ${user?.name?.split(' ')[0]} 👋`}
         subtitle={`${ROLE_LABELS[user?.role] || user?.role} · ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
         actions={
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-2xs font-bold text-emerald-400 uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live data
-          </span>
+          <div className="flex items-center gap-2">
+            <Link to="/eod" className="btn-secondary btn-sm gap-1.5">
+              <CalendarCheck size={13} />EOD Report
+            </Link>
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-2xs font-bold text-emerald-400 uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live data
+            </span>
+          </div>
         }
       />
 
