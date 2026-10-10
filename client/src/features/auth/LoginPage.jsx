@@ -1,73 +1,64 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth }     from '../../context/AuthContext'
-import { DEMO_USERS, USER_GROUPS, ROLE_HOME, ROLE_LABELS } from '../../context/AuthContext'
-import { Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown, Users, Briefcase } from 'lucide-react'
+import { useAuth }  from '../../context/AuthContext'
+import { ROLE_OPTIONS, WORKER_LIST, ROLE_HOME } from '../../context/AuthContext'
+import { Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
-const ROLE_COLORS = {
-  owner:      'from-primary-500 to-violet-600',
-  supervisor: 'from-amber-500 to-orange-600',
-  inspector:  'from-emerald-500 to-teal-600',
-  store:      'from-cyan-500 to-blue-600',
-  accounts:   'from-pink-500 to-rose-600',
-  worker:     'from-zinc-500 to-zinc-700',
-}
-
-// Give each worker a distinct colour to distinguish them
-const WORKER_COLORS = [
-  'from-primary-500 to-violet-600',
-  'from-cyan-500 to-blue-600',
-  'from-emerald-500 to-teal-600',
-  'from-amber-500 to-orange-600',
-  'from-pink-500 to-rose-600',
-  'from-violet-500 to-purple-600',
-  'from-teal-500 to-cyan-600',
-  'from-indigo-500 to-blue-600',
-]
-
-function getUserColor(user) {
-  if (user.role !== 'worker') return ROLE_COLORS[user.role] || 'from-zinc-500 to-zinc-700'
-  // consistent colour by workerId
-  const idx = parseInt((user.workerId || 'W-000').replace('W-00', '').replace('W-0', '')) - 1
-  return WORKER_COLORS[idx % WORKER_COLORS.length]
-}
-
 const FEATURES = [
-  { icon: '🧵', title: 'End-to-End Traceability',  desc: 'Track every yarn lot to finished fabric roll and dispatch' },
-  { icon: '⚙️', title: 'Live Machine Monitoring',  desc: 'Real-time status for every machine on the production floor' },
-  { icon: '🔍', title: 'Smart Quality Control',    desc: 'QR-based roll inspection with full defect analytics' },
-  { icon: '📊', title: 'Owner Analytics',          desc: 'Revenue, P&L and order profitability in one dashboard' },
+  { icon: '🧵', title: 'End-to-End Traceability',  desc: 'Track every yarn lot to finished roll and dispatch' },
+  { icon: '⚙️', title: 'Live Machine Monitoring',  desc: 'Real-time status for every machine on the floor'   },
+  { icon: '🔍', title: 'Smart Quality Control',    desc: 'QR-based roll inspection with defect analytics'     },
+  { icon: '📊', title: 'Owner Analytics',          desc: 'Revenue, P&L and order profitability at a glance'  },
 ]
 
 export default function LoginPage() {
-  const { login }   = useAuth()
-  const navigate    = useNavigate()
-  const dropdownRef = useRef(null)
+  const { login }    = useAuth()
+  const navigate     = useNavigate()
+  const roleRef      = useRef(null)
+  const workerRef    = useRef(null)
 
-  const [selectedEmail, setSelectedEmail] = useState('owner@everest.com')
-  const [password, setPassword]           = useState('demo123')
-  const [showPw, setShowPw]               = useState(false)
-  const [showDropdown, setShowDropdown]   = useState(false)
-  const [error, setError]                 = useState('')
-  const [loading, setLoading]             = useState(false)
+  // Step 1: role selection (one of ROLE_OPTIONS)
+  const [selectedRole, setSelectedRole]     = useState(ROLE_OPTIONS[0])
+  const [showRoleMenu, setShowRoleMenu]     = useState(false)
 
-  const currentUser = DEMO_USERS.find(u => u.email === selectedEmail) || DEMO_USERS[0]
+  // Step 2: worker sub-picker (only when role = 'worker')
+  const [selectedWorker, setSelectedWorker] = useState(WORKER_LIST[0])
+  const [showWorkerMenu, setShowWorkerMenu] = useState(false)
 
-  // Close dropdown when clicking outside
+  const [password, setPassword] = useState('demo123')
+  const [showPw, setShowPw]     = useState(false)
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
+
+  // Derive the email to authenticate with
+  const loginEmail = selectedRole.role === 'worker'
+    ? selectedWorker.email
+    : ROLE_OPTIONS.find(r => r.role === selectedRole.role)
+        ? `${selectedRole.role}@everest.com`
+        : `${selectedRole.role}@everest.com`
+
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowDropdown(false)
-      }
+      if (roleRef.current   && !roleRef.current.contains(e.target))   setShowRoleMenu(false)
+      if (workerRef.current && !workerRef.current.contains(e.target)) setShowWorkerMenu(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleSelect = (email) => {
-    setSelectedEmail(email)
-    setShowDropdown(false)
+  const handleRoleSelect = (opt) => {
+    setSelectedRole(opt)
+    setShowRoleMenu(false)
+    setError('')
+    // Reset worker to first when switching back to worker
+    if (opt.role === 'worker') setSelectedWorker(WORKER_LIST[0])
+  }
+
+  const handleWorkerSelect = (w) => {
+    setSelectedWorker(w)
+    setShowWorkerMenu(false)
     setError('')
   }
 
@@ -75,22 +66,17 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    await new Promise(r => setTimeout(r, 600))
-    const res = login(currentUser.email, password)
+    await new Promise(r => setTimeout(r, 550))
+    const res = login(loginEmail, password)
     setLoading(false)
-    if (res.ok) {
-      navigate(ROLE_HOME[res.role] || '/dashboard')
-    } else {
-      setError(res.error)
-    }
+    if (res.ok) navigate(ROLE_HOME[res.role] || '/dashboard')
+    else setError(res.error)
   }
-
-  const userColor = getUserColor(currentUser)
 
   return (
     <div className="min-h-screen flex bg-zinc-950">
 
-      {/* ── Left hero panel ── */}
+      {/* ── Left hero ── */}
       <div className="hidden lg:flex lg:w-[52%] xl:w-1/2 relative flex-col justify-between p-12 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-950 via-zinc-900 to-zinc-950" />
         <div className="absolute inset-0 bg-grid" />
@@ -151,7 +137,7 @@ export default function LoginPage() {
 
       {/* ── Right sign-in panel ── */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[400px]">
 
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-8">
@@ -163,122 +149,127 @@ export default function LoginPage() {
 
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-zinc-50 tracking-tight">Sign in</h2>
-            <p className="text-sm text-zinc-500 mt-1">Select your account and enter your password</p>
+            <p className="text-sm text-zinc-500 mt-1">Choose your role and enter your password</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* ── User / Role dropdown ── */}
-            <div ref={dropdownRef}>
-              <label className="label">Sign in as</label>
+            {/* ── Role dropdown ── */}
+            <div ref={roleRef}>
+              <label className="label">Role</label>
               <button
                 type="button"
-                onClick={() => setShowDropdown(v => !v)}
+                onClick={() => { setShowRoleMenu(v => !v); setShowWorkerMenu(false) }}
                 className={cn(
-                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all duration-150',
-                  'bg-zinc-900 hover:border-zinc-600',
-                  showDropdown
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left',
+                  'bg-zinc-900 hover:border-zinc-600 transition-all duration-150',
+                  showRoleMenu
                     ? 'border-primary-500/60 ring-2 ring-primary-500/20'
                     : 'border-zinc-700/80',
                 )}
               >
-                {/* Avatar */}
                 <div className={cn(
-                  'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white font-bold text-sm',
-                  userColor,
+                  'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-lg',
+                  selectedRole.color,
                 )}>
-                  {currentUser?.name?.charAt(0) ?? 'U'}
+                  {selectedRole.icon}
                 </div>
-                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-zinc-100 leading-tight">{currentUser?.name}</p>
-                  <p className="text-xs text-zinc-500 leading-tight mt-0.5">
-                    {ROLE_LABELS[currentUser?.role]}
-                    {currentUser?.workerId && (
-                      <span className="ml-1.5 font-mono text-zinc-600">· {currentUser.workerId}</span>
-                    )}
-                  </p>
+                  <p className="text-sm font-bold text-zinc-100 leading-tight">{selectedRole.label}</p>
+                  <p className="text-xs text-zinc-500 leading-tight mt-0.5">{selectedRole.desc}</p>
                 </div>
-                <ChevronDown
-                  size={16}
-                  className={cn('text-zinc-500 transition-transform duration-200 shrink-0', showDropdown && 'rotate-180')}
-                />
+                <ChevronDown size={16} className={cn('text-zinc-500 transition-transform duration-200 shrink-0', showRoleMenu && 'rotate-180')} />
               </button>
 
-              {/* Dropdown */}
-              {showDropdown && (
-                <div className="mt-1.5 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-scale-in max-h-80 overflow-y-auto scrollbar-thin">
-                  {USER_GROUPS.map((group, gi) => (
-                    <div key={group.group}>
-                      {/* Group header */}
+              {showRoleMenu && (
+                <div className="mt-1.5 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-scale-in">
+                  {ROLE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.role}
+                      type="button"
+                      onClick={() => handleRoleSelect(opt)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-100',
+                        'hover:bg-zinc-800/60 border-b border-zinc-800/30 last:border-0',
+                        selectedRole.role === opt.role && 'bg-primary-500/10',
+                      )}
+                    >
                       <div className={cn(
-                        'flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800/80',
-                        gi > 0 && 'border-t border-zinc-700/40',
-                        'bg-zinc-800/40',
+                        'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-lg',
+                        opt.color,
                       )}>
-                        {group.group === 'Floor Workers'
-                          ? <Users size={11} className="text-zinc-500" />
-                          : <Briefcase size={11} className="text-zinc-500" />
-                        }
-                        <p className="text-2xs font-bold text-zinc-500 uppercase tracking-widest">{group.group}</p>
-                        <span className="ml-auto text-2xs text-zinc-700">{group.users.length} accounts</span>
+                        {opt.icon}
                       </div>
-
-                      {/* Users in group */}
-                      {group.users.map(u => {
-                        const uColor = getUserColor(u)
-                        const isSelected = u.email === selectedEmail
-                        return (
-                          <button
-                            key={u.email}
-                            type="button"
-                            onClick={() => handleSelect(u.email)}
-                            className={cn(
-                              'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-100',
-                              'hover:bg-zinc-800/60 border-b border-zinc-800/30 last:border-0',
-                              isSelected && 'bg-primary-500/10',
-                            )}
-                          >
-                            <div className={cn(
-                              'w-8 h-8 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white font-bold text-xs',
-                              uColor,
-                            )}>
-                              {u.name.charAt(0)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-zinc-200 leading-tight">{u.name}</p>
-                              <p className="text-xs text-zinc-500 leading-tight">
-                                {ROLE_LABELS[u.role]}
-                                {u.workerId && (
-                                  <span className="ml-1.5 font-mono text-zinc-600">{u.workerId}</span>
-                                )}
-                              </p>
-                            </div>
-                            {isSelected && (
-                              <span className="w-2 h-2 rounded-full bg-primary-400 shrink-0" />
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-zinc-200 leading-tight">{opt.label}</p>
+                        <p className="text-xs text-zinc-500 leading-tight mt-0.5">{opt.desc}</p>
+                      </div>
+                      {selectedRole.role === opt.role && (
+                        <span className="w-2 h-2 rounded-full bg-primary-400 shrink-0" />
+                      )}
+                    </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Email — read only, derived from selection */}
-            <div>
-              <label className="label">Email address</label>
-              <input
-                type="email"
-                className="input opacity-60 cursor-default select-none"
-                value={currentUser?.email ?? ''}
-                readOnly
-                tabIndex={-1}
-              />
-            </div>
+            {/* ── Worker sub-picker — only when Worker role is selected ── */}
+            {selectedRole.role === 'worker' && (
+              <div ref={workerRef} className="animate-fade-in">
+                <label className="label">Select Worker ID</label>
+                <button
+                  type="button"
+                  onClick={() => { setShowWorkerMenu(v => !v); setShowRoleMenu(false) }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border text-left',
+                    'bg-zinc-900 hover:border-zinc-600 transition-all duration-150',
+                    showWorkerMenu
+                      ? 'border-primary-500/60 ring-2 ring-primary-500/20'
+                      : 'border-zinc-700/80',
+                  )}
+                >
+                  {/* Worker ID badge */}
+                  <div className="w-9 h-9 rounded-xl bg-zinc-700 shrink-0 flex items-center justify-center text-xs font-black text-zinc-200 font-mono">
+                    {selectedWorker.workerId?.replace('W-', '')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-zinc-100 leading-tight">{selectedWorker.name}</p>
+                    <p className="text-xs text-zinc-500 leading-tight mt-0.5 font-mono">{selectedWorker.workerId} · {selectedWorker.dept}</p>
+                  </div>
+                  <ChevronDown size={15} className={cn('text-zinc-500 transition-transform duration-200 shrink-0', showWorkerMenu && 'rotate-180')} />
+                </button>
 
-            {/* Password */}
+                {showWorkerMenu && (
+                  <div className="mt-1.5 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-scale-in max-h-56 overflow-y-auto scrollbar-thin">
+                    {WORKER_LIST.map(w => (
+                      <button
+                        key={w.workerId}
+                        type="button"
+                        onClick={() => handleWorkerSelect(w)}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-100',
+                          'hover:bg-zinc-800/60 border-b border-zinc-800/30 last:border-0',
+                          selectedWorker.workerId === w.workerId && 'bg-primary-500/10',
+                        )}
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-zinc-700 shrink-0 flex items-center justify-center text-xs font-black text-zinc-200 font-mono">
+                          {w.workerId?.replace('W-', '')}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-zinc-200 leading-tight">{w.name}</p>
+                          <p className="text-xs text-zinc-500 leading-tight font-mono">{w.workerId} · {w.dept}</p>
+                        </div>
+                        {selectedWorker.workerId === w.workerId && (
+                          <span className="w-2 h-2 rounded-full bg-primary-400 shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Password ── */}
             <div>
               <label className="label">Password</label>
               <div className="relative">
@@ -310,42 +301,34 @@ export default function LoginPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              className="btn-primary w-full btn-lg mt-2"
-              disabled={loading}
-            >
+            <button type="submit" className="btn-primary w-full btn-lg mt-2" disabled={loading}>
               {loading
                 ? <Loader2 size={18} className="animate-spin" />
-                : <>Sign in as {currentUser?.name?.split(' ')[0]} <ArrowRight size={15} /></>
+                : <>
+                    Sign in as {selectedRole.role === 'worker' ? selectedWorker.name.split(' ')[0] : selectedRole.label.split(' ')[0]}
+                    <ArrowRight size={15} />
+                  </>
               }
             </button>
           </form>
 
-          {/* Access summary table */}
+          {/* Access summary */}
           <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/80 rounded-2xl">
-            <p className="text-2xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Access Summary</p>
-            <div className="space-y-1.5">
-              {[
-                { role: 'owner',      icon: '👑', desc: 'Full access — all modules'              },
-                { role: 'supervisor', icon: '🏭', desc: 'Floor, machines, production'             },
-                { role: 'inspector',  icon: '🔍', desc: 'Quality control & defects'               },
-                { role: 'store',      icon: '📦', desc: 'Inventory & dispatch'                    },
-                { role: 'accounts',   icon: '💼', desc: 'Orders, finance & payroll'               },
-                { role: 'worker',     icon: '👷', desc: 'Personal attendance & wages dashboard'   },
-              ].map(r => (
+            <p className="text-2xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Access levels</p>
+            <div className="space-y-1">
+              {ROLE_OPTIONS.map(r => (
                 <div key={r.role} className={cn(
                   'flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-colors',
-                  currentUser?.role === r.role ? 'bg-primary-500/10' : '',
+                  selectedRole.role === r.role ? 'bg-primary-500/10' : '',
                 )}>
-                  <span className="text-sm shrink-0">{r.icon}</span>
+                  <span className="text-base shrink-0">{r.icon}</span>
                   <span className={cn(
-                    'text-xs font-semibold w-20 shrink-0 capitalize',
-                    currentUser?.role === r.role ? 'text-primary-300' : 'text-zinc-400',
+                    'text-xs font-semibold w-24 shrink-0',
+                    selectedRole.role === r.role ? 'text-primary-300' : 'text-zinc-500',
                   )}>
-                    {r.role}
+                    {r.label.split(' ')[0]}
                   </span>
-                  <span className="text-2xs text-zinc-600">{r.desc}</span>
+                  <span className="text-2xs text-zinc-600 truncate">{r.desc}</span>
                 </div>
               ))}
             </div>

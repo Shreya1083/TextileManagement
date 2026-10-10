@@ -8,15 +8,16 @@ import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext(null)
 
+// ── All system users ──────────────────────────────────────────────────────
 export const DEMO_USERS = [
-  // ── Management / Office ──────────────────────────────────────────────────
+  // Management / Office
   { email: 'owner@everest.com',      password: 'demo123', role: 'owner',      name: 'Rajesh Sharma',  dept: 'Management', workerId: null    },
   { email: 'store@everest.com',      password: 'demo123', role: 'store',      name: 'Kamla Devi',     dept: 'Store',      workerId: null    },
   { email: 'supervisor@everest.com', password: 'demo123', role: 'supervisor', name: 'Arvind Kumar',   dept: 'Production', workerId: null    },
   { email: 'inspector@everest.com',  password: 'demo123', role: 'inspector',  name: 'Neha Shah',      dept: 'QC',         workerId: null    },
   { email: 'accounts@everest.com',   password: 'demo123', role: 'accounts',   name: 'Pradeep Gupta',  dept: 'Accounts',   workerId: null    },
   { email: 'buyer@everest.com',      password: 'demo123', role: 'buyer',      name: 'Anita Desai',    dept: 'Buyer',      workerId: null    },
-  // ── Workers (floor employees) ────────────────────────────────────────────
+  // Floor Workers
   { email: 'mohan@everest.com',      password: 'demo123', role: 'worker',     name: 'Mohan Kumar',    dept: 'Production', workerId: 'W-001' },
   { email: 'suresh@everest.com',     password: 'demo123', role: 'worker',     name: 'Suresh Patil',   dept: 'Production', workerId: 'W-002' },
   { email: 'anil@everest.com',       password: 'demo123', role: 'worker',     name: 'Anil Verma',     dept: 'Production', workerId: 'W-003' },
@@ -27,7 +28,21 @@ export const DEMO_USERS = [
   { email: 'deepak@everest.com',     password: 'demo123', role: 'worker',     name: 'Deepak Singh',   dept: 'Store',      workerId: 'W-008' },
 ]
 
-// Where each role lands after login
+// ── The roles shown in the login dropdown ─────────────────────────────────
+export const ROLE_OPTIONS = [
+  { role: 'owner',      label: 'Owner / Admin',          desc: 'Full access to all modules',           icon: '👑', color: 'from-primary-500 to-violet-600' },
+  { role: 'supervisor', label: 'Production Supervisor',  desc: 'Machine board, production & downtime', icon: '🏭', color: 'from-amber-500 to-orange-600'   },
+  { role: 'inspector',  label: 'Quality Inspector',      desc: 'Inspection queue & defect reports',    icon: '🔍', color: 'from-emerald-500 to-teal-600'   },
+  { role: 'store',      label: 'Store Keeper',           desc: 'Inventory, gate entry & dispatch',     icon: '📦', color: 'from-cyan-500 to-blue-600'      },
+  { role: 'accounts',   label: 'Office / Accounts',      desc: 'Orders, invoices, payroll & finance',  icon: '💼', color: 'from-pink-500 to-rose-600'      },
+  { role: 'worker',     label: 'Worker',                 desc: 'Personal attendance & wages dashboard',icon: '👷', color: 'from-zinc-500 to-zinc-600'      },
+  { role: 'buyer',      label: 'Buyer',                  desc: 'Track your own orders',                icon: '🛒', color: 'from-teal-500 to-cyan-600'      },
+]
+
+// ── Workers list for the secondary picker (shown when role = worker) ──────
+export const WORKER_LIST = DEMO_USERS.filter(u => u.role === 'worker')
+
+// ── Where each role lands after login ─────────────────────────────────────
 export const ROLE_HOME = {
   owner:      '/dashboard',
   supervisor: '/floor',
@@ -38,7 +53,7 @@ export const ROLE_HOME = {
   worker:     '/worker/my-dashboard',
 }
 
-// Human-readable role labels
+// ── Human-readable role labels ────────────────────────────────────────────
 export const ROLE_LABELS = {
   owner:      'Owner / Admin',
   store:      'Store Keeper',
@@ -49,18 +64,6 @@ export const ROLE_LABELS = {
   worker:     'Floor Worker',
 }
 
-// Group users for the login dropdown
-export const USER_GROUPS = [
-  {
-    group: 'Management & Office',
-    users: DEMO_USERS.filter(u => u.role !== 'worker'),
-  },
-  {
-    group: 'Floor Workers',
-    users: DEMO_USERS.filter(u => u.role === 'worker'),
-  },
-]
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
 
@@ -70,7 +73,7 @@ export function AuthProvider({ children }) {
       setUser({ id: found.email, ...found })
       return { ok: true, role: found.role }
     }
-    return { ok: false, error: 'Invalid email or password' }
+    return { ok: false, error: 'Invalid credentials. Please try again.' }
   }
 
   const logout = () => setUser(null)
