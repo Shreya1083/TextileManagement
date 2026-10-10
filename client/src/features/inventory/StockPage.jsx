@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, AlertTriangle, Plus, TrendingDown } from 'lucide-react'
+import { Search, AlertTriangle, Plus } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { useAuth }    from '../../context/AuthContext'
@@ -8,8 +8,6 @@ import { cn } from '../../lib/utils'
 
 function StockBar({ current, reserved, reorder }) {
   const available = current - reserved
-  const usedPct   = Math.min(100, (reserved / current) * 100)
-  const okPct     = Math.min(100, (available / (reorder * 2)) * 100)
   return (
     <div className="flex items-center gap-2 min-w-[120px]">
       <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">

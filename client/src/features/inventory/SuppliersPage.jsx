@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Search, Building2, Package } from 'lucide-react'
+import { Plus, Search, Building2 } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { mockSuppliers } from '../../mocks/data'

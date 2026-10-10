@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 
 // TODO (backend): Replace client-side credential matching with a real API call before production use.
 // Example: POST /api/auth/login with { email, password } → JWT token returned and stored securely.

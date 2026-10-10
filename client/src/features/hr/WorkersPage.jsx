@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Briefcase } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { mockWorkers } from '../../mocks/data'

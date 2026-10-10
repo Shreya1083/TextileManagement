@@ -258,7 +258,7 @@ export default function HomePage() {
               <nav className="flex flex-col sm:flex-row gap-4 sm:gap-8">
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Platform</p>
-                  <a href="#" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Home</a>
+                  <Link to="/" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Home</Link>
                   <a href="#features" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Features</a>
                   <a href="#about" className="block text-sm text-zinc-500 hover:text-zinc-300 transition-colors">About</a>
                 </div>

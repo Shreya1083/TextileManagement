@@ -4,6 +4,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { useAuth }    from '../../context/AuthContext'
 import { mockWorkers } from '../../mocks/data'
 import { cn } from '../../lib/utils'
+import { useAuth } from '../../context/AuthContext'
 
 const STATUS_CFG = {
   PRESENT:  { label: 'Present',  short: 'P', bg: 'bg-emerald-500/15 border-emerald-500/40', text: 'text-emerald-300', icon: CheckCircle2, dot: 'bg-emerald-400' },

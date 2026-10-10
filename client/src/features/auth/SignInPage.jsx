@@ -32,13 +32,19 @@ export default function SignInPage() {
     formState: { errors },
   } = useForm({ defaultValues: { email: '', password: '', role: '' } })
 
-  const onSubmit = async ({ email, password }) => {
+  const onSubmit = async ({ email, password, role }) => {
     setAuthError('')
     setLoading(true)
     await new Promise(r => setTimeout(r, 600))
     const res = login(email, password)
     setLoading(false)
     if (res.ok) {
+      // Cross-check: the submitted role must match the role assigned to this account.
+      // This prevents a user from entering owner credentials while selecting a different role.
+      if (res.role !== role) {
+        setAuthError('The selected role does not match this account. Please choose the correct role.')
+        return
+      }
       navigate(ROLE_HOME[res.role] || '/dashboard')
     } else {
       setAuthError(res.error || 'Authentication failed. Check your credentials.')

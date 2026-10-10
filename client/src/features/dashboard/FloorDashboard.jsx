@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Zap, AlertTriangle, Clock, Activity, RefreshCw, ChevronRight } from 'lucide-react'
-import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { useAuth }    from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'

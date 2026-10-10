@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, Package, CheckCircle, Truck, Factory, Eye, Layers, Clock } from 'lucide-react'
+import { Search, Package, CheckCircle, Truck, Factory, Eye, Layers } from 'lucide-react'
 import { mockOrders } from '../../mocks/data'
 import { formatDate, cn } from '../../lib/utils'
 

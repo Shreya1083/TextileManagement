@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Layers, Menu, X } from 'lucide-react'
 
-const NAV_LINKS = [
-  { label: 'Home',     href: '#' },
+// Anchor-style links scroll to sections on the landing page; Home navigates to /
+const NAV_ANCHORS = [
   { label: 'About',    href: '#about' },
   { label: 'Features', href: '#features' },
   { label: 'Contact',  href: '#contact' },
@@ -35,7 +35,14 @@ export default function PublicHeader() {
 
           {/* Desktop nav links */}
           <nav className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map(({ label, href }) => (
+            {/* Home uses Link so it navigates to / from any route */}
+            <Link
+              to="/"
+              className="px-3 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-150"
+            >
+              Home
+            </Link>
+            {NAV_ANCHORS.map(({ label, href }) => (
               <a
                 key={label}
                 href={href}
@@ -69,7 +76,15 @@ export default function PublicHeader() {
         {/* Mobile dropdown nav */}
         {mobileOpen && (
           <nav className="md:hidden border-t border-zinc-800/60 pb-4 pt-3 space-y-1 animate-fade-in">
-            {NAV_LINKS.map(({ label, href }) => (
+            {/* Home uses Link so it navigates to / from any route */}
+            <Link
+              to="/"
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-150"
+            >
+              Home
+            </Link>
+            {NAV_ANCHORS.map(({ label, href }) => (
               <a
                 key={label}
                 href={href}
