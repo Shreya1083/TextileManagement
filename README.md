@@ -50,7 +50,7 @@ The current-state problems described in the supplied problem statement are:
 
 The ERP must connect the complete workflow from yarn arriving at the gate to production, quality control, dispatch, invoicing, wages and month-end financial reporting.
 
-Additional proposed innovation: QR traceability for fabric rolls; face recognition and RFID options for workforce workflows; IoT machine monitoring; AI-assisted quality inspection and operational insights. These are planned enhancements, not requirements stated in the original three-page problem statement unless separately agreed.
+Additional proposed innovation: QR traceability for fabric rolls; software-based attendance sessions; simulated machine monitoring for demos; AI-assisted reporting and operational insights. Physical devices such as ESP32 boards, RFID readers, biometric cameras and industrial sensors are out of current scope unless separately procured and approved.
 
 ## 2. Vision and Goals
 
@@ -266,7 +266,7 @@ The source build plan describes approximately nine modules and a full applicatio
 - Worker list, role and wage basis (daily wage or piece rate).
 - Shift-wise attendance and overtime.
 - Manual or bulk attendance marking with audit trail.
-- Optional QR, RFID and face-recognition methods, subject to privacy and deployment decisions.
+- QR/session-based attendance with manual supervisor correction; no RFID, biometric or custom hardware dependency in the current scope.
 - Monthly wage sheet: days present, rate, overtime, deductions and net pay.
 - Lock approved wage sheets after month close, with controlled corrections.
 
@@ -288,19 +288,19 @@ The source build plan describes approximately nine modules and a full applicatio
 - Buyer payment overdue.
 - Later optional channels: email and WhatsApp, only after provider, consent and template requirements are confirmed.
 
-## 6. Smart Technology and AI/IoT Features
+## 6. Smart Technology and Analytics Features
 
-The technologies below solve different problems and should be integrated into the same ERP rather than treated as separate systems. Core ERP workflows should work even if optional hardware or AI services are unavailable.
+The technologies below solve different problems and should be integrated into the same ERP rather than treated as separate systems. The current scope is software-only: QR, browser/tablet workflows, simulated machine events for demos, and analytics from ERP data. Hardware-specific features are excluded until devices, budget, safety review and privacy approval exist.
 
 | Use case | Candidate technology | ERP integration | Priority |
 |---|---|---|---|
 | QR fabric-roll labels | node-qrcode | Create roll ID, scan at QC/warehouse/dispatch | MVP/high |
 | Browser QR scanner | html5-qrcode | Scan roll or attendance-session code | MVP/high |
-| RFID floor login / attendance fallback | ESP32 + MFRC522/RC522 reader; card mapping in backend | Secure session or attendance event | Demo enhancement |
-| Face attendance | Webcam + face-matching service; evaluate face-api.js, DeepFace or InsightFace | Attendance event and supervised review | Optional; privacy review first |
-| Machine telemetry | ESP32 + appropriate meter/current/status sensor | Machine Board, output and downtime events | Optional |
-| Vehicle plate recognition | Camera + OCR/ALPR component | Gate Entry and Dispatch vehicle number | Later |
-| Fabric defect assistance | Camera + computer-vision model | Suggest defect label; inspector confirms | Later |
+| Attendance session QR | Server-generated short-lived QR/session code | Attendance event and supervised review | MVP/high |
+| Manual attendance correction | Authenticated supervisor form | Correction audit and wage approval | MVP/high |
+| Simulated machine events | Backend simulator/admin entry | Machine Board, output and downtime demo data | Demo/high |
+| Vehicle entry form | Manual vehicle/challan fields | Gate Entry and Dispatch vehicle number | MVP/high |
+| Fabric defect assistance | Uploaded sample image or manual defect entry | Suggest defect label; inspector confirms | Later |
 | Delay prediction | Historical planned vs actual progress | Deadline-risk alert | Later |
 | Owner daily summary | AI-generated summary from authorized report data | Dashboard insight; link every claim to source data | Later |
 | Buyer updates | Approved WhatsApp/email provider | Notify on permitted status transitions | Later |
@@ -310,21 +310,21 @@ The technologies below solve different problems and should be integrated into th
 Build a reliable vertical slice first:
 
 1. QR labels for fabric rolls: generate at roll creation and scan at QC and dispatch.
-2. Attendance demonstration: start with a secure QR/session or RFID card workflow; keep manual supervisor correction available.
-3. One AI/IoT showcase: choose either defect-assistance on sample fabric images, simulated machine telemetry, or an owner daily summary.
+2. Attendance demonstration: use a secure QR/session workflow and keep manual supervisor correction available.
+3. One analytics showcase: choose either defect assistance on uploaded sample images, simulated machine telemetry, or an owner daily summary.
 
-Do not try to deliver every advanced feature at once. Face recognition can be impressive, but it is not required for the original problem statement. It introduces consent, bias, false-match, lighting, camera and data-retention concerns. If selected, use human review and a non-biometric alternative. Store biometric templates only if justified and approved; embeddings are still sensitive biometric data. Do not make wages depend solely on an unreviewed face match.
+Do not try to deliver every advanced feature at once. Face recognition, RFID and physical sensors are intentionally out of current scope because they introduce hardware cost, reliability, privacy, safety and maintenance concerns. Wages must always be based on approved attendance records and supervisor-reviewed corrections, not an unreviewed automated signal.
 
-### Machine monitoring integration
+### Machine monitoring simulation
 
-An ESP32 device may publish machine state and meter readings to an authenticated API. The backend should validate device identity, timestamp and sensor values, deduplicate repeated events and record the source. A simulator can send the same event format for a stable demo.
+A software simulator or authorized supervisor entry may publish machine state, output and downtime events to the API for demos. The backend should validate actor identity, timestamp, machine, status and payload shape, deduplicate repeated events where appropriate and record the source as `MANUAL` or `SIMULATED`.
 
 ### AI feature safeguards
 
 - AI outputs are recommendations, not authoritative financial or quality decisions.
 - An inspector confirms defect outcomes; an authorized manager confirms high-impact actions.
 - Owner summaries must use authorized, current data and link to underlying reports.
-- Do not send employee biometrics, payroll details or confidential buyer data to an external AI provider without an approved data-handling plan.
+- Do not send payroll details, confidential buyer data or restricted factory data to an external AI provider without an approved data-handling plan.
 
 ## 7. QR Workflows
 
@@ -399,25 +399,24 @@ sequenceDiagram
     DB-->>API: Approved attendance feeds wage calculation
 ```
 
-### 7.3 RFID login and fallback
+### 7.3 Manual attendance fallback
 
-- Map each card UID to a card record, not directly to privileged permissions.
-- A card tap should be combined with server-side checks and, where appropriate, a PIN or authenticated device/session.
-- Support lost-card revocation and audit logs.
-- Keep a manual supervisor-assisted fallback when hardware or scanning fails.
+- Keep an authenticated supervisor form for workers who cannot scan the session QR.
+- Require worker, shift/date, attendance state, correction reason and approving actor.
+- Store timestamp, source method and audit trail for every correction.
+- Prevent duplicate attendance for the same worker and shift through database/API checks.
 
 ```mermaid
 flowchart TD
-    T["Card tap on ESP32 + RC522 reader"] --> V{"Device authenticated?"}
-    V -->|No| X["Reject and log"]
-    V -->|Yes| C{"Card UID mapped to active card record?"}
-    C -->|No or revoked| X
-    C -->|Yes| P{"PIN / session check required?"}
-    P -->|Yes| PIN["Verify PIN or authenticated device"]
-    P -->|No| E
-    PIN --> E["Create secure session or attendance event"]
+    T["Worker cannot scan QR"] --> V{"Supervisor authenticated?"}
+    V -->|No| X["Reject"]
+    V -->|Yes| C{"Worker and shift valid?"}
+    C -->|No| X
+    C -->|Yes| R{"Reason provided?"}
+    R -->|No| X
+    R -->|Yes| E["Create correction attendance event"]
     E --> AUD["Audit log"]
-    X --> F["Manual supervisor-assisted fallback"]
+    X --> F["Retry QR scan or review manually"]
 ```
 
 ## 8. Business Rules and Status Lifecycles
@@ -582,7 +581,7 @@ The uploaded build plan recommends React/Vite/Tailwind, Node.js/Express, Postgre
 | Deployment | Docker; AWS EC2 or Render/Railway demo | Deployment |
 | Optional async work | Redis + BullMQ | Background notifications/tasks |
 | Optional real-time | Socket.IO or polling | Live machine board |
-| Optional hardware | ESP32 + suitable sensors / RFID reader | Telemetry and card scanning |
+| Demo simulation | Software-generated telemetry/events | Machine board and downtime demonstrations |
 | Optional AI | Separately deployed model/service | Defect assistance, summaries or prediction |
 
 **Important:** choose one consistent implementation stack. Do not mix NestJS and Express as two competing backends unless there is a deliberate architectural reason. This README uses Express because it matches the uploaded Everest build plan and the proposed `/client` + `/server` structure.
@@ -590,7 +589,7 @@ The uploaded build plan recommends React/Vite/Tailwind, Node.js/Express, Postgre
 ## 10. System Architecture
 
 ```text
-Users / Factory Tablets / Buyer Browser / Camera / RFID / ESP32
+Users / Factory Tablets / Buyer Browser
                          |
                          v
                 React + Vite Client
@@ -601,7 +600,7 @@ Users / Factory Tablets / Buyer Browser / Camera / RFID / ESP32
                 Node.js + Express API
       +------------------+------------------+
       |                  |                  |
- Auth/Roles       Domain Modules     Device/API Adapter
+ Auth/Roles       Domain Modules     QR/Simulation Adapter
       |                  |                  |
       +------------------+------------------+
                          |
@@ -616,12 +615,12 @@ Audit/Events      Reports/Exports     Optional Queue
 
 ```mermaid
 flowchart TD
-    U["Users / Factory Tablets / Buyer Browser / Camera / RFID / ESP32"] -->|HTTPS REST JSON| FE["React + Vite Client"]
+    U["Users / Factory Tablets / Buyer Browser"] -->|HTTPS REST JSON| FE["React + Vite Client"]
     FE --> API["Node.js + Express API"]
     subgraph API_LAYER["Express API"]
         AUTH["Auth / Roles"]
         DOM["Domain Modules"]
-        DEV["Device / API Adapter"]
+        DEV["QR / Simulation Adapter"]
     end
     API --> AUTH
     API --> DOM
@@ -635,7 +634,7 @@ flowchart TD
     Q --> N["Notifications / AI"]
 ```
 
-Core modules must remain usable without optional AI services, sensors or external messaging providers. All device-originated data must be authenticated and validated before it changes authoritative records.
+Core modules must remain usable without optional AI services, simulated events or external messaging providers. All scanner, simulator and public-tracking payloads must be authenticated or token-validated before they change authoritative records.
 
 ## 11. Database Model
 
@@ -924,7 +923,7 @@ everest-textile-erp/
 │   │   │   ├── hr/
 │   │   │   ├── finance/
 │   │   │   ├── settings/
-│   │   │   └── smart-factory/   # optional QR/RFID/IoT/AI UI
+│   │   │   └── smart-factory/   # optional QR/simulator/AI UI
 │   │   ├── mocks/               # development only
 │   │   └── tests/
 │   ├── .env.example
@@ -952,7 +951,7 @@ everest-textile-erp/
 │   │   │   ├── payroll/
 │   │   │   ├── finance/
 │   │   │   ├── reports/
-│   │   │   └── devices/         # optional RFID/IoT adapter
+│   │   │   └── devices/         # optional simulator/external adapter
 │   │   ├── utils/
 │   │   └── tests/
 │   └── package.json
@@ -1072,7 +1071,7 @@ WHATSAPP_PROVIDER=
 AI_PROVIDER_API_KEY=
 ```
 
-Use separate secrets for development, staging and production. Keep biometric records, payroll data and production credentials out of source control, logs and screenshots.
+Use separate secrets for development, staging and production. Keep payroll data, access tokens and production credentials out of source control, logs and screenshots.
 
 ## 17. Kiro Spec-Driven Development
 
@@ -1095,7 +1094,7 @@ The supplied build plan recommends creating three artifacts for each feature: `r
 | 4 | quality | Inspection queue, defects, rework, traceability | Production |
 | 5 | dispatch-billing | Finished stock, QR scan, dispatch, invoices, buyer tracking | Quality |
 | 6 | hr-finance | Workers, attendance, wages, payments, costing, owner reports | Foundation and relevant business modules |
-| 7 | smart-factory (optional) | RFID/face/IoT/AI integrations with fallback paths | Stable core workflows |
+| 7 | smart-factory (optional) | QR, simulator and AI integrations with fallback paths | Stable core workflows |
 
 ```mermaid
 flowchart LR
@@ -1157,7 +1156,7 @@ flowchart TD
     P5["Phase 5 - Quality and QR<br/>inspection, defects, rework, QR"]
     P6["Phase 6 - Dispatch and billing<br/>dispatch, invoice, buyer tracking"]
     P7["Phase 7 - HR and finance<br/>attendance, wages, costing, P&L"]
-    P8["Phase 8 - Demo innovation<br/>RFID, telemetry, AI - pick one or two"]
+    P8["Phase 8 - Demo innovation<br/>QR, simulated telemetry, AI - pick one or two"]
     P9["Phase 9 - Production hardening<br/>security, backups, deployment, training"]
     P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9
 ```
@@ -1203,7 +1202,7 @@ flowchart TD
 
 ### Phase 8 — Demo innovation
 
-- Select one or two: RFID reader, simulated/real machine telemetry, AI defect suggestion or owner summary.
+- Select one or two: QR scan workflow, simulated machine telemetry, AI defect suggestion or owner summary.
 - Keep manual/software fallback ready.
 
 ### Phase 9 — Production hardening
@@ -1258,8 +1257,8 @@ Use the checklist as a release gate. Mark an item complete only after it passes 
 
 - [ ] One worker cannot accidentally create duplicate attendance for the same shift.
 - [ ] QR/session tokens are validated and expired/invalid scans are rejected.
-- [ ] RFID card loss/revocation and fallback are handled if RFID is enabled.
-- [ ] Biometric matching is never the only path for attendance correction.
+- [ ] QR/session attendance fallback and supervisor correction are handled.
+- [ ] No biometric or RFID dependency is required for attendance correction.
 - [ ] Manual corrections include actor, reason and timestamp.
 - [ ] Wage sheet uses approved attendance, configured wage basis, overtime and deductions.
 - [ ] Month-close lock and controlled adjustment are tested.
@@ -1274,22 +1273,22 @@ Use the checklist as a release gate. Mark an item complete only after it passes 
 - [ ] Database backup and restore have been rehearsed.
 - [ ] Secrets and real employee/customer data are not committed.
 - [ ] Dependency and repository licenses are reviewed.
-- [ ] Demo can run if optional hardware/AI services fail.
+- [ ] Demo can run if optional AI services are unavailable.
 
 ## 20. Security, Privacy and Reliability
 
 - Enforce role permissions on the server for every protected route and action.
 - Hash passwords with a suitable password-hashing algorithm; use HTTPS in production.
 - Use short-lived sessions/tokens, secure cookies or carefully managed bearer tokens, and revocation where applicable.
-- Do not trust a QR payload or RFID UID by itself as authorization.
-- Validate device identity, timestamps and payload shape for IoT telemetry.
-- Apply rate limits and idempotency to repeated attendance, QR and telemetry events.
+- Do not trust a QR payload by itself as authorization.
+- Validate actor identity, timestamps and payload shape for simulated telemetry/manual machine events.
+- Apply rate limits and idempotency to repeated attendance, QR and simulated telemetry events.
 - Use database transactions for stock movement, dispatch, payroll approval and financial posting.
 - Record audit history for stock adjustments, attendance corrections, QC overrides, dispatch and finance.
 - Restrict access to buyer tracking tokens and avoid exposing internal costs or personal data.
 - Store secrets in environment/secret management, never in Git.
 - Back up the database and test restoration; define retention and access controls for backups.
-- Biometric data, including face embeddings, is sensitive. Before enabling face recognition, obtain appropriate informed consent, provide a non-biometric alternative, define retention/deletion and access policies, evaluate false matches and document applicable legal obligations. Seek qualified legal advice for compliance requirements.
+- Biometric attendance is outside the current scope. If the project later considers it, obtain appropriate informed consent, provide a non-biometric alternative, define retention/deletion and access policies, evaluate false matches and document applicable legal obligations. Seek qualified legal advice for compliance requirements.
 - AI suggestions must be reviewable and must not automatically finalize high-impact quality, payroll or financial decisions.
 
 ## 21. Deployment
@@ -1353,21 +1352,20 @@ These are technology repositories and project references, not a claim that any o
 - node-argon2
 - Swagger UI
 
-**QR, RFID and IoT**
+**QR, simulation and analytics**
 
 - node-qrcode
 - html5-qrcode
-- ESP-IDF
-- Arduino ESP32 core
-- MFRC522 Arduino library
+- Server-side simulator endpoints for demo machine events
+- Manual supervisor fallback workflows
 
-RFID/ESP32 libraries are firmware-side components; they do not provide a complete secure ERP integration by themselves.
+No firmware-side libraries are required in the current backend scope.
 
-**Computer vision / face recognition candidates**
+**Computer vision / AI candidates**
 
-- face-api.js
-- DeepFace
-- InsightFace
+- Uploaded-image defect suggestion service, only if selected later
+- Owner summary generation from authorized report data
+- Forecasting service for analytics, only after enough historical data exists
 
 Evaluate model licences, intended use, accuracy, deployment and privacy before adoption. Do not assume every model or pretrained weight has the same licence as its code repository.
 
@@ -1391,14 +1389,11 @@ Evaluate model licences, intended use, accuracy, deployment and privacy before a
 - Prometheus
 - Grafana
 
-**Hardware to evaluate (not GitHub links)**
+**No current hardware dependency**
 
-- ESP32 development board.
-- MFRC522/RC522 RFID reader and test cards.
-- Suitable machine meter/current/status sensor, chosen after electrical and safety review.
-- Camera/webcam for optional face attendance or fabric inspection.
-- QR-capable phone/tablet and label printer.
-- Verify electrical compatibility and machine safety before connecting sensors to industrial equipment.
+- QR-capable phone/tablet and label printer are enough for the current QR workflows.
+- Machine telemetry is simulated or entered manually until real industrial hardware is approved.
+- RFID, biometric attendance, ESP32 sensors and vehicle cameras are excluded from the active stack.
 
 ## 23. Risks and Decisions to Confirm
 
@@ -1409,9 +1404,8 @@ Resolve these with the factory/team before production implementation:
 - Yarn consumption ratio and how reservations, partial issues, returns and wastage work.
 - Production stages used for each fabric type and the meaning of completion at each stage.
 - Attendance policy: shift windows, overnight shifts, breaks, grace periods, overtime and corrections.
-- Whether face recognition is justified, consented to and legally reviewed; which non-biometric fallback is available.
-- RFID card policy, lost cards, device trust and whether card tap alone is enough for the intended action.
-- Which machine signals can be safely measured and whether a simulator is sufficient for the demo.
+- QR/session attendance policy and supervisor correction approval flow.
+- Which machine events should be simulated or entered manually for the demo.
 - Quality defect taxonomy, grading scale, inspection photos and who may override decisions.
 - Costing method: average/FIFO yarn cost, labour allocation, overhead allocation, wastage and rework.
 - GST/invoice configuration and financial/accounting requirements.
@@ -1425,7 +1419,7 @@ Resolve these with the factory/team before production implementation:
 1. Create a feature branch.
 2. Keep module code and tests together.
 3. Write or update acceptance tests for business rules.
-4. Do not commit secrets, biometric records or real employee/customer data.
+4. Do not commit secrets or real employee/customer data.
 5. Include screenshots for UI changes and test results for workflow changes.
 6. Update this README when routes, environment variables, setup scripts or implemented features change.
 7. Open a pull request with a clear summary and known limitations.
@@ -1436,7 +1430,7 @@ No license has been selected for this project yet. Add a `LICENSE` file after de
 
 ## 26. Source and scope note
 
-This README combines the supplied Textile Manufacturing System problem statement (the yarn receipt, production floor, QC, buyer update, dispatch and month-end finance scenarios) with the supplied Everest Textile Mills – Build Plan for Kiro (roles, screen/routes, database outline, business rules, APIs, costing, Kiro workflow and suggested stack). QR fabric-roll traceability and the optional face/RFID/IoT/AI enhancements are included from the subsequent project discussion. Where the source plan gives estimates, they are described as estimates. Where implementation choices were not settled, they are marked as proposed or requiring confirmation.
+This README combines the supplied Textile Manufacturing System problem statement (the yarn receipt, production floor, QC, buyer update, dispatch and month-end finance scenarios) with the supplied Everest Textile Mills build plan for Kiro (roles, screen/routes, database outline, business rules, APIs, costing, Kiro workflow and suggested stack). QR fabric-roll traceability, software attendance sessions, simulated telemetry and optional analytics/AI enhancements are included from the subsequent project discussion. Physical hardware integrations are outside the active scope. Where the source plan gives estimates, they are described as estimates. Where implementation choices were not settled, they are marked as proposed or requiring confirmation.
 
 ---
 
@@ -1461,7 +1455,7 @@ Use this matrix to make sure every problem in the factory workflow maps to an im
 | Attendance register | Attendance events and shift rules | Duplicate scans and authorized corrections are handled and audited |
 | Unclear wages | Wage sheet and configured policy | Payroll can be reproduced from approved attendance and wage rules |
 | Unknown order profitability | Order costing and finance reports | Cost totals trace to source transactions and declared allocation rules |
-| New smart-factory ideas | Separate optional QR/RFID/IoT/AI adapters | Core ERP remains usable when an adapter is disabled |
+| New smart-factory ideas | Separate optional QR/simulator/AI adapters | Core ERP remains usable when an adapter is disabled |
 
 ### Non-Functional Requirements
 
@@ -1507,9 +1501,9 @@ For critical business actions, store who did what, when, against which record, a
 - Quality decision, rework, rejection and overrides.
 - Attendance correction, wage approval and payroll reopening.
 - Dispatch confirmation, invoice issuance, payment allocation and cost adjustments.
-- Changes to QR/RFID credentials, device registration and AI-assisted decisions.
+- Changes to QR/session credentials, simulator configuration and AI-assisted decisions.
 
-Audit logs should be append-only to ordinary application users; restrict access and avoid copying passwords, access tokens, biometric templates or unnecessary personal data into logs. Define retention and deletion periods with the business owner and applicable obligations.
+Audit logs should be append-only to ordinary application users; restrict access and avoid copying passwords, access tokens or unnecessary personal data into logs. Define retention and deletion periods with the business owner and applicable obligations.
 
 ### Data Migration, Import and Export
 
@@ -1535,7 +1529,7 @@ Document and test:
 - Periodic restore drills into a separate environment.
 - Recovery point and recovery time objectives approved by the owner.
 - Rollback procedure for failed releases and migrations.
-- Procedure for lost RFID cards, failed cameras, QR scanner outages and ESP32/device disconnection.
+- Procedure for QR scanner outages, simulator issues and manual fallback.
 - Manual fallback for attendance and production entry, including later reconciliation and audit.
 - Contact/ownership for incidents, deployment and database maintenance.
 
