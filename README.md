@@ -77,45 +77,6 @@ Additional proposed innovation: QR traceability for fabric rolls; face recogniti
 - **Honest status:** dashboards must use real API/database data in production, not permanent mock values.
 
 ## 3. Factory Workflow
-
-```text
-Supplier / Yarn Purchase
-        |
-        v
-Gate Entry / Goods Receipt (GRN)
-        |
-        v
-Yarn Lots + Stock Ledger + Availability Check
-        |
-        v
-Buyer Order + Yarn Reservation / Purchase Order
-        |
-        v
-Production Order and Work Assignment
-        |
-        v
-Spinning -> Weaving -> Dyeing -> Finishing (as applicable)
-        |
-        v
-Production Logs + Unique Fabric Roll IDs / QR Labels
-        |
-        v
-Quality Inspection: Awaiting QC -> Pass / Rework / Reject
-        |                      |
-      Pass                   Rework
-        v                      v
-Finished-Goods Stock     Production / Re-inspection
-        |
-        v
-Dispatch Selection -> Packing List -> Shipment
-        |
-        v
-Invoice -> Buyer Payment / Outstanding Balance
-        |
-        v
-Order Costing -> Machine Output -> Monthly P&L / Owner Dashboard
-```
-
 ```mermaid
 flowchart TD
     subgraph PROC["1. Procurement"]
