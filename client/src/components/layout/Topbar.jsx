@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Menu, Bell, Search, X, AlertTriangle, AlertCircle, LogOut, ChevronDown } from 'lucide-react'
+import { Menu, Bell, X, AlertTriangle, AlertCircle, LogOut, ChevronDown } from 'lucide-react'
 import { useAuth }   from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
 import { mockAlerts } from '../../mocks/data'
@@ -122,7 +122,6 @@ export function Topbar({ onMenuClick }) {
   const navigate         = useNavigate()
   const [showAlerts, setShowAlerts] = useState(false)
   const [showUser,   setShowUser]   = useState(false)
-  const [searchFocus, setSearchFocus] = useState(false)
   const unread = mockAlerts.filter(a => a.severity === 'danger').length
 
   const handleLogout = () => {
@@ -139,26 +138,7 @@ export function Topbar({ onMenuClick }) {
         <Menu size={18} />
       </button>
 
-      {/* Search bar */}
-      <div className={cn(
-        'hidden md:flex items-center gap-2.5 flex-1 max-w-sm px-3.5 py-2 rounded-xl',
-        'bg-zinc-900 border transition-all duration-150',
-        searchFocus
-          ? 'border-primary-500/50 ring-2 ring-primary-500/15'
-          : 'border-zinc-800 hover:border-zinc-700/80',
-      )}>
-        <Search size={14} className={cn('transition-colors', searchFocus ? 'text-primary-400' : 'text-zinc-500')} />
-        <input
-          type="text"
-          placeholder="Search orders, rolls, buyers…"
-          className="flex-1 bg-transparent text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none"
-          onFocus={() => setSearchFocus(true)}
-          onBlur={() => setSearchFocus(false)}
-        />
-        <kbd className="hidden lg:flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-zinc-800 text-2xs text-zinc-500 font-mono">
-          ⌘K
-        </kbd>
-      </div>
+
 
       <div className="flex-1" />
 
