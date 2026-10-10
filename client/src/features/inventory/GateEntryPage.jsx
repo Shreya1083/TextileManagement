@@ -4,6 +4,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { useToast }   from '../../components/ui/Toast'
 import { formatDate } from '../../lib/utils'
+import { mockSuppliers, mockYarnStock } from '../../mocks/data'
 import api from '../../lib/api'
 
 const initGRNs = [
@@ -73,12 +74,26 @@ export default function GateEntryPage() {
         api.get('/inventory/suppliers'),
         api.get('/inventory/yarn-types'),
       ])
-      if (sRes.status === 'fulfilled' && sRes.value.data?.data) {
-        setSuppliers(sRes.value.data.data)
-      }
-      if (yRes.status === 'fulfilled' && yRes.value.data?.data) {
-        setYarnTypes(yRes.value.data.data)
-      }
+      const supplierData =
+        sRes.status === 'fulfilled' && Array.isArray(sRes.value.data?.data)
+          ? sRes.value.data.data
+          : []
+      const yarnData =
+        yRes.status === 'fulfilled' && Array.isArray(yRes.value.data?.data)
+          ? yRes.value.data.data
+          : []
+
+      setSuppliers(supplierData.length > 0 ? supplierData : mockSuppliers)
+      setYarnTypes(
+        yarnData.length > 0
+          ? yarnData
+          : mockYarnStock.map(item => ({
+              id: item.id,
+              name: item.type,
+              color: item.colour,
+              unit: item.unit,
+            })),
+      )
     } catch (err) {
       console.warn('Failed to load dropdowns:', err.message)
     }

@@ -19,7 +19,7 @@ import {
   mockStats, mockRevenueData, mockProductionData, mockQualityData,
   mockOrders, mockAlerts, mockMachines,
 } from '../../mocks/data'
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 
 /* ── Chart tooltip ─────────────────────────────────────────────────────── */
 const ChartTip = ({ active, payload, label }) => {
