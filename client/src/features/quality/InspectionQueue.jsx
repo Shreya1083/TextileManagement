@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, ScanLine, CheckCircle, RotateCcw, XCircle } from 'lucide-react'
+import { Eye, CheckCircle, RotateCcw, XCircle } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { Badge }      from '../../components/ui/Badge'
@@ -59,18 +59,11 @@ export default function InspectionQueue() {
     )
   }
 
-  const handleScan = () => toast('QR scan requires a camera — feature available on mobile', 'info')
-
   return (
     <div className="page-root">
       <PageHeader
         title="Inspection Queue"
         subtitle={`Inspector: ${user?.name} · ${queue.length} rolls awaiting QC`}
-        actions={
-          <button className="btn-secondary btn-sm" onClick={handleScan}>
-            <ScanLine size={13} />Scan Roll QR
-          </button>
-        }
       />
 
       <div className="table-wrap">
