@@ -41,6 +41,14 @@ app.use('/api/', limiter)
 // ROUTES
 // ============================================
 
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Textile ERP API is running',
+    health: '/health',
+  })
+})
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })

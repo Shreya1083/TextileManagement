@@ -1,5 +1,5 @@
-// Textile ERP - Database Schema
-// Authentication, User Management, and ERP Domains
+// Everest Textile Mills ERP - Database Schema
+// This schema defines the complete data model for the textile manufacturing ERP system
 
 generator client {
   provider = "prisma-client-js"
@@ -11,7 +11,7 @@ datasource db {
 }
 
 // ============================================
-// USER MANAGEMENT
+// IDENTITY AND ACCESS MANAGEMENT
 // ============================================
 
 model User {
@@ -30,25 +30,34 @@ model User {
   updatedAt         DateTime @updatedAt
 
   // Relations
-  sessions UserSession[]
+  gateEntries       GateEntry[]
+  productionLogs    ProductionLog[]
+  inspections       Inspection[]
+  dispatches        Dispatch[]
+  attendanceRecords Attendance[]
+  createdOrders     Order[]          @relation("OrderCreator")
+  workAssignments   WorkAssignment[]
+  sessions          UserSession[]
+  stockMovements    StockMovement[]
 
   @@index([email])
   @@index([role])
   @@index([isActive])
+  @@index([lastLoginAt])
   @@map("users")
 }
 
 model UserSession {
-  id        String   @id @default(cuid())
-  sessionId String   @unique
-  userId    String
-  token     String   @db.Text
-  userAgent String?
-  ipAddress String?
-  isActive  Boolean  @default(true)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  userId      String
+  token       String
+  userAgent   String?
+  ipAddress   String?
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -67,36 +76,628 @@ enum Role {
   INSPECTOR
   ACCOUNTS
   BUYER
-  WORKER
 }
 
 // ============================================
-// ERP MODELS
+// INVENTORY AND PROCUREMENT
 // ============================================
 
-model Customer {
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  gstin       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  gateEntries     GateEntry[]
+  purchaseOrders  PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model YarnType {
   id           String   @id @default(cuid())
-  buyerId      String?  @unique @default(cuid())
   name         String
-  email        String?
-  phone        String?
-  address      String?
-  city         String?
-  state        String?
-  pincode      String?
-  type         String?
-  gstin        String?
-  pan          String?
-  creditLimit  Float?
-  paymentTerms String?
-  orders       Order[]
+  count        String
+  color        String
+  unit         String   @default("kg")
+  reorderLevel Int      @default(100)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
-  @@map("customers")
+
+  // Relations
+  stockBatches StockBatch[]
+  gateEntries  GateEntry[]
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@map("yarn_types")
+}
+
+model StockBatch {
+  id                String   @id @default(cuid())
+  yarnTypeId        String
+  lotNumber         String
+  currentQuantity   Int      // MUST be >= 0 (enforced in application)
+  reservedQuantity  Int      @default(0) // MUST be >= 0 (enforced in application)
+  unitPrice         Int      // in paise - MUST be > 0 (enforced in application)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  yarnType       YarnType        @relation(fields: [yarnTypeId], references: [id])
+  stockMovements StockMovement[]
+  stockReservations StockReservation[]
+
+  // Business Rules:
+  // 1. Stock balance derived from stock movements; never silently overwrite quantity
+  // 2. Available stock = currentQuantity - reservedQuantity (computed in application)
+  // 3. currentQuantity >= 0, reservedQuantity >= 0
+  // 4. Low-stock warning when available < reorder level (handled in service)
+  // 5. Unit price > 0
+  @@index([yarnTypeId])
+  @@index([currentQuantity]) // For stock level queries
+  @@map("stock_batches")
+}
+
+model GateEntry {
+  id              String   @id @default(cuid())
+  grnNumber       String   @unique
+  supplierId      String
+  yarnTypeId      String
+  lotNumber       String
+  quantity        Int      // in kg - MUST be > 0 (enforced in application)
+  bags            Int?
+  cones           Int?
+  vehicleNumber   String?
+  challanNumber   String?
+  receivedBy      String
+  receivedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  // Relations
+  supplier  Supplier @relation(fields: [supplierId], references: [id])
+  yarnType  YarnType @relation(fields: [yarnTypeId], references: [id])
+  user      User     @relation(fields: [receivedBy], references: [id])
+
+  // Business Rules:
+  // 1. Challan number unique per supplier (when provided)
+  // 2. Quantity must be positive
+  @@unique([supplierId, challanNumber], name: "unique_challan_per_supplier")
+  @@index([supplierId])
+  @@index([yarnTypeId])
+  @@index([grnNumber])
+  @@map("gate_entries")
+}
+
+model StockMovement {
+  id            String       @id @default(cuid())
+  stockBatchId  String
+  userId        String?
+  movementType  MovementType
+  quantity      Int          // Cannot be zero (enforced in application)
+  referenceType String       // Required: GRN, PRODUCTION, ADJUSTMENT etc.
+  referenceId   String       // Required: ID of the related record
+  reason        String?      // Required for ADJUST movements
+  createdAt     DateTime     @default(now())
+
+  // Relations
+  stockBatch StockBatch @relation(fields: [stockBatchId], references: [id])
+  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Business Rules:
+  // 1. Quantity cannot be zero
+  // 2. referenceType and referenceId must be provided
+  // 3. ADJUST movements require reason
+  @@index([stockBatchId])
+  @@index([userId])
+  @@index([movementType])
+  @@map("stock_movements")
+}
+
+model StockReservation {
+  id            String            @id @default(cuid())
+  stockBatchId  String
+  quantity      Int
+  referenceType String
+  referenceId   String
+  status        ReservationStatus @default(RESERVED)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  stockBatch StockBatch @relation(fields: [stockBatchId], references: [id])
+
+  @@index([stockBatchId])
+  @@index([referenceType, referenceId])
+  @@index([status])
+  @@map("stock_reservations")
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUST
+}
+
+enum ReservationStatus {
+  RESERVED
+  FULFILLED
+  RELEASED
+}
+
+model PurchaseOrder {
+  id            String   @id @default(cuid())
+  poNumber      String   @unique
+  supplierId    String
+  status        POStatus @default(RAISED)
+  expectedDate  DateTime
+  receivedDate  DateTime?
+  totalAmount   Int      // in paise
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  items    PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  yarnTypeId      String
+  quantity        Int
+  receivedQuantity Int     @default(0)
+  unitPrice       Int      // in paise
+  createdAt       DateTime @default(now())
+
+  // Relations
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  yarnType      YarnType      @relation(fields: [yarnTypeId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([yarnTypeId])
+  @@map("purchase_order_items")
+}
+
+enum POStatus {
+  RAISED
+  PARTIALLY_RECEIVED
+  RECEIVED
+}
+
+// ============================================
+// BUYERS AND ORDERS
+// ============================================
+
+model Buyer {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  gstin       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  orders    Order[]
+  dispatches Dispatch[]
+  invoices  Invoice[]
+
+  @@map("buyers")
+}
+
+model FabricType {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  gsm             Int?
+  width           Int?
+  yarnPerMetre    Int      // yarn required per metre in grams
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  orders Order[]
+
+  @@map("fabric_types")
 }
 
 model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  buyerId         String
+  fabricTypeId    String
+  color           String
+  quantity        Int         // in metres - MUST be > 0 (enforced in application)
+  ratePerMetre    Int         // in paise
+  deadline        DateTime    // MUST be > createdAt (enforced in application)
+  status          OrderStatus @default(DRAFT)
+  notes           String?
+  trackingToken   String      @unique @default(cuid())
+  createdBy       String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  buyer              Buyer               @relation(fields: [buyerId], references: [id])
+  fabricType         FabricType          @relation(fields: [fabricTypeId], references: [id])
+  creator            User                @relation("OrderCreator", fields: [createdBy], references: [id])
+  workAssignments    WorkAssignment[]
+  fabricRolls        FabricRoll[]
+  dispatches         Dispatch[]
+  invoices           Invoice[]
+  statusHistory      OrderStatusHistory[]
+
+  // Business Rules:
+  // 1. quantity > 0 - Order quantity must be positive
+  // 2. deadline > createdAt - Deadline must be in future
+  // 3. Status lifecycle: DRAFT → CONFIRMED → YARN_PENDING → IN_PRODUCTION → QUALITY_CHECK → READY_TO_SHIP → DISPATCHED → CLOSED
+  @@index([buyerId])
+  @@index([fabricTypeId])
+  @@index([status])
+  @@index([trackingToken])
+  @@map("orders")
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  status    OrderStatus
+  notes     String?
+  createdAt DateTime    @default(now())
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  YARN_PENDING
+  IN_PRODUCTION
+  QUALITY_CHECK
+  READY_TO_SHIP
+  DISPATCHED
+  CLOSED
+}
+
+// ============================================
+// PRODUCTION FLOOR
+// ============================================
+
+model Machine {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  machineCode String        @unique
+  stage       MachineStage
+  status      MachineStatus @default(IDLE)
+  location    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  workAssignments WorkAssignment[]
+  productionLogs  ProductionLog[]
+  downtimeLogs    DowntimeLog[]
+  fabricRolls     FabricRoll[]
+
+  @@index([status])
+  @@index([stage])
+  @@map("machines")
+}
+
+enum MachineStage {
+  SPINNING
+  WEAVING
+  DYEING
+  FINISHING
+}
+
+enum MachineStatus {
+  IDLE
+  RUNNING
+  BREAKDOWN
+  MAINTENANCE
+}
+
+model WorkAssignment {
+  id              String   @id @default(cuid())
+  orderId         String
+  machineId       String
+  stage           MachineStage
+  plannedQuantity Int      // in metres - MUST be > 0 (enforced in application)
+  startDate       DateTime
+  endDate         DateTime?
+  shift           String?
+  assignedBy      String
+  status          String   @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  order          Order           @relation(fields: [orderId], references: [id])
+  machine        Machine         @relation(fields: [machineId], references: [id])
+  assignedByUser User            @relation(fields: [assignedBy], references: [id])
+  productionLogs ProductionLog[]
+  fabricRolls    FabricRoll[]
+
+  // Business Rules:
+  // 1. Only one ACTIVE assignment per machine at a time (enforced in application)
+  // 2. Cannot assign to BREAKDOWN or MAINTENANCE machines (enforced in application)
+  // 3. plannedQuantity > 0
+  @@index([orderId])
+  @@index([machineId])
+  @@index([status])
+  @@index([machineId, status]) // For unique active assignment check
+  @@map("work_assignments")
+}
+
+model ProductionLog {
+  id               String   @id @default(cuid())
+  date             DateTime
+  shift            String
+  machineId        String
+  orderId          String
+  workAssignmentId String?
+  outputQuantity   Int      // in metres - MUST be >= 0 (enforced in application)
+  wasteQuantity    Int      @default(0) // MUST be >= 0 (enforced in application)
+  operatorId       String
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  // Relations
+  machine        Machine         @relation(fields: [machineId], references: [id])
+  operator       User            @relation(fields: [operatorId], references: [id])
+  workAssignment WorkAssignment? @relation(fields: [workAssignmentId], references: [id])
+
+  // Business Rules:
+  // 1. outputQuantity >= 0 - Production output cannot be negative
+  // 2. wasteQuantity >= 0 - Waste cannot be negative
+  // 3. Must be attributable to shift, machine, order and operator
+  @@index([machineId])
+  @@index([orderId])
+  @@index([date])
+  @@map("production_logs")
+}
+
+model DowntimeLog {
+  id        String   @id @default(cuid())
+  machineId String
+  startTime DateTime
+  endTime   DateTime?
+  reason    String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  machine Machine @relation(fields: [machineId], references: [id])
+
+  @@index([machineId])
+  @@map("downtime_logs")
+}
+
+// ============================================
+// QUALITY CONTROL AND TRACEABILITY
+// ============================================
+
+model FabricRoll {
+  id               String     @id @default(cuid())
+  rollNumber       String     @unique // MUST be unique and never reused
+  orderId          String     // Required - every roll must link to order
+  machineId        String?
+  workAssignmentId String?    // Required - every roll must link to work assignment
+  length           Int        // in metres - MUST be > 0 (enforced in application)
+  weight           Int?       // in grams
+  productionDate   DateTime   // Required - production date
+  status           RollStatus @default(PRODUCED)
+  qrCode           String?    @unique
+  location         String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Relations
+  order          Order           @relation(fields: [orderId], references: [id])
+  machine        Machine?        @relation(fields: [machineId], references: [id])
+  workAssignment WorkAssignment? @relation(fields: [workAssignmentId], references: [id])
+  inspections    Inspection[]
+  dispatchItems  DispatchItem[]
+
+  // Business Rules:
+  // 1. rollNumber unique and never reused
+  // 2. Every roll must link to order, machine, work assignment and production date
+  // 3. Only PASSED and RELEASED rolls can enter FINISHED_STOCK
+  // 4. REJECTED rolls cannot be dispatched
+  // 5. Status lifecycle: PRODUCED → AWAITING_QC → PASSED/REWORK/REJECTED → FINISHED_STOCK → DISPATCHED
+  @@index([orderId])
+  @@index([status])
+  @@index([rollNumber])
+  @@index([productionDate])
+  @@map("fabric_rolls")
+}
+
+enum RollStatus {
+  PRODUCED
+  AWAITING_QC
+  PASSED
+  REWORK
+  REJECTED
+  FINISHED_STOCK
+  DISPATCHED
+}
+
+model Inspection {
+  id           String           @id @default(cuid())
+  rollId       String
+  inspectorId  String
+  result       InspectionResult // Required - inspection result is mandatory
+  grade        String?
+  remarks      String?          // Required for REWORK/REJECTED results (enforced in application)
+  photoUrl     String?
+  inspectedAt  DateTime         @default(now())
+  createdAt    DateTime         @default(now())
+
+  // Relations
+  roll      FabricRoll @relation(fields: [rollId], references: [id])
+  inspector User       @relation(fields: [inspectorId], references: [id])
+  defects   Defect[]
+
+  // Business Rules:
+  // 1. result is mandatory - every inspection must have a result
+  // 2. REWORK/REJECT requires reason in remarks (enforced in application)
+  // 3. Inspection changes and overrides must be audited (handled in service layer)
+  @@index([rollId])
+  @@index([inspectorId])
+  @@index([result])
+  @@index([inspectedAt])
+  @@map("inspections")
+}
+
+model Defect {
+  id           String   @id @default(cuid())
+  inspectionId String
+  defectType   String
+  count        Int      @default(1)
+  location     String?
+  severity     String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+  @@index([defectType])
+  @@map("defects")
+}
+
+enum InspectionResult {
+  PASS
+  REWORK
+  REJECT
+}
+
+// ============================================
+// DISPATCH AND BILLING
+// ============================================
+
+model Dispatch {
+  id            String   @id @default(cuid())
+  dispatchNumber String  @unique
+  buyerId       String
+  orderId       String
+  vehicleNumber String?
+  driverName    String?
+  driverPhone   String?
+  totalMetres   Int
+  dispatchDate  DateTime
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  buyer  Buyer          @relation(fields: [buyerId], references: [id])
+  order  Order          @relation(fields: [orderId], references: [id])
+  creator User          @relation(fields: [createdBy], references: [id])
+  items  DispatchItem[]
+  invoice Invoice?
+
+  @@index([buyerId])
+  @@index([orderId])
+  @@index([dispatchNumber])
+  @@map("dispatches")
+}
+
+model DispatchItem {
+  id         String   @id @default(cuid())
+  dispatchId String
+  rollId     String   @unique // One roll can only be dispatched once
+  createdAt  DateTime @default(now())
+
+  // Relations
+  dispatch Dispatch   @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  roll     FabricRoll @relation(fields: [rollId], references: [id])
+
+  @@index([dispatchId])
+  @@map("dispatch_items")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  buyerId       String
+  orderId       String
+  dispatchId    String?       @unique // One dispatch per invoice
+  totalAmount   Int           // in paise - MUST be > 0 (enforced in application)
+  paidAmount    Int           @default(0) // MUST be >= 0 (enforced in application)
+  status        InvoiceStatus @default(PENDING)
+  invoiceDate   DateTime
+  dueDate       DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  buyer    Buyer     @relation(fields: [buyerId], references: [id])
+  order    Order     @relation(fields: [orderId], references: [id])
+  dispatch Dispatch? @relation(fields: [dispatchId], references: [id])
+  payments Payment[]
+
+  // Business Rules:
+  // 1. totalAmount > 0 - Invoice amount must be positive
+  // 2. paidAmount >= 0 - Paid amount cannot be negative
+  // 3. paidAmount <= totalAmount - Cannot overpay without explicit policy (enforced in application)
+  // 4. Invoice quantity must match dispatch quantity (enforced in application)
+  // 5. Lock issued invoices against silent edits (status-based constraint in application)
+  @@index([buyerId])
+  @@index([orderId])
+  @@index([status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  amount        Int      // in paise
+  paymentMethod String
+  transactionId String?
+  paymentDate   DateTime
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+// ============================================
+// HR AND WORKFORCE
+// ============================================
+
+model Worker {
   id          String   @id @default(cuid())
   employeeId  String   @unique
   name        String
@@ -113,291 +714,184 @@ model Order {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id])
-  rolls    Roll[]
-
-  @@map("orders")
-}
-
-model Machine {
-  id        String   @id @default(cuid())
-  machineId String   @unique // M-01, M-02
-  name      String
-  stage     String   // Spinning, Weaving, Dyeing, Finishing
-  status    String   // RUNNING, IDLE, BREAKDOWN
-  output    Int      @default(0)
-  operator  String?
-  order     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  rolls     Roll[]
-  productionEntries ProductionEntry[]
-  downtimes         Downtime[]
-
-  @@map("machines")
-}
-
-model Downtime {
-  id        String   @id @default(cuid())
-  machineId String
-  reason    String
-  status    String   @default("OPEN") // OPEN, RESOLVED
-  start     DateTime @default(now())
-  end       DateTime?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  machine   Machine  @relation(fields: [machineId], references: [machineId])
-
-  @@map("downtimes")
-}
-
-model ProductionEntry {
-  id        String   @id @default(cuid())
-  date      DateTime
-  shift     String
-  machineId String
-  orderId   String?
-  output    Float
-  waste     Float
-  rolls     Int
-  operator  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  machine   Machine  @relation(fields: [machineId], references: [machineId])
-
-  @@map("production_entries")
-}
-
-model Roll {
-  id          String   @id @default(cuid())
-  rollNumber  String   @unique
-  orderId     String
-  machineId   String
-  length      Float
-  status      String   // AWAITING_QC, PASSED, REWORK, REJECTED
-  inspector   String?
-  producedAt  DateTime
-  defects     String?
-  remarks     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  order   Order   @relation(fields: [orderId], references: [id])
-  machine Machine @relation(fields: [machineId], references: [id])
-
-  @@map("rolls")
-}
-
-model InventoryItem {
-  id        String   @id @default(cuid())
-  type      String   // Cotton 40s, Poly 150D
-  color     String
-  current   Float
-  reserved  Float
-  reorder   Float
-  unit      String   // kg, m
-  status    String   // OK, LOW, OUT
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  bomItems  BOMItem[]
-
-  @@map("inventory_items")
-}
-
-model BOM {
-  id          String   @id @default(cuid())
-  bomId       String   @unique
-  productName String
-  fabric      String
-  color       String
-  
-  items       BOMItem[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("boms")
-}
-
-model BOMItem {
-  id          String   @id @default(cuid())
-  bomId       String
-  inventoryId String
-  quantity    Float    // Amount required per unit (e.g. per meter)
-  
-  bom         BOM           @relation(fields: [bomId], references: [id])
-  inventory   InventoryItem @relation(fields: [inventoryId], references: [id])
-  
-  @@map("bom_items")
-}
-
-model Worker {
-  id        String   @id @default(cuid())
-  workerId  String   @unique
-  name      String
-  role      String
-  dept      String
-  wage      Float
-  basis     String
-  shift     String?
-  contact   String?
-  email     String?
-  rfidUid   String?
-  machineId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  attendances Attendance[]
+  // Relations
+  attendance Attendance[]
+  wageRecords WageRecord[]
 
   @@map("workers")
 }
 
-model Attendance {
+enum WageBasis {
+  DAILY
+  PIECE_RATE
+}
+
+model Shift {
   id        String   @id @default(cuid())
-  workerId  String
-  date      DateTime
-  status    String   // P, A, H, S
+  name      String   @unique
+  startTime String
+  endTime   String
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  worker    Worker   @relation(fields: [workerId], references: [workerId], onDelete: Cascade)
+  // Relations
+  attendance         Attendance[]
+  attendanceSessions AttendanceSession[]
 
-  @@unique([workerId, date])
+  @@map("shifts")
+}
+
+model Attendance {
+  id                String           @id @default(cuid())
+  workerId          String
+  shiftId           String
+  date              DateTime
+  status            AttendanceStatus
+  checkInTime       DateTime?
+  checkOutTime      DateTime?
+  overtimeHours     Int              @default(0) // MUST be >= 0 (enforced in application)
+  attendanceMethod  String?          // QR, MANUAL, BULK_UPLOAD
+  correctionReason  String?          // Required for manual corrections (enforced in application)
+  correctedBy       String?          // Required if correction made (enforced in application)
+  correctedAt       DateTime?
+  originalStatus    AttendanceStatus? // Track original status before correction
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  worker          Worker @relation(fields: [workerId], references: [id])
+  shift           Shift  @relation(fields: [shiftId], references: [id])
+  correctedByUser User?  @relation(fields: [correctedBy], references: [id])
+
+  // Business Rules:
+  // 1. One attendance state per worker per shift (unique constraint)
+  // 2. Manual corrections require reason, actor, and timestamp audit
+  // 3. Duplicate scans handled idempotently (enforced in application)
+  // 4. overtimeHours >= 0
+  @@unique([workerId, date, shiftId], name: "unique_worker_shift_attendance")
+  @@index([workerId])
+  @@index([date])
   @@map("attendance")
 }
 
-model Supplier {
-  id            String   @id @default(cuid())
-  name          String
-  contactPerson String?
-  city          String
-  state         String?
-  phone         String
-  altPhone      String?
-  email         String?
-  gstin         String?
-  pan           String?
-  website       String?
-  yarnTypes     String?
-  leadDays      String?
-  paymentTerms  String?
-  notes         String?
-  activePos     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@map("suppliers")
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
 }
 
-model Dispatch {
+model WageRecord {
+  id          String   @id @default(cuid())
+  workerId    String
+  month       Int      // 1-12
+  year        Int      // YYYY
+  daysPresent Int      // MUST be >= 0 (enforced in application)
+  overtime    Int      @default(0) // MUST be >= 0 (enforced in application)
+  grossWage   Int      // in paise - MUST be >= 0 (enforced in application)
+  deductions  Int      @default(0) // MUST be >= 0 (enforced in application)
+  netWage     Int      // in paise - MUST equal grossWage + overtime - deductions (enforced in application)
+  isLocked    Boolean  @default(false) // Lock after month close
+  lockedAt    DateTime? // When the record was locked
+  lockedBy    String?   // Who locked the record
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  worker Worker @relation(fields: [workerId], references: [id])
+
+  // Business Rules:
+  // 1. One wage record per worker per month/year
+  // 2. Wage calculation = approved attendance × configured rate + overtime - deductions
+  // 3. Lock wage sheets after month close; corrections need controlled reopening
+  // 4. Money in integer paise (no floating-point arithmetic)
+  // 5. All amounts >= 0
+  // 6. netWage = grossWage + overtime - deductions
+  @@unique([workerId, month, year], name: "unique_worker_month_wage")
+  @@index([workerId])
+  @@index([isLocked])
+  @@index([month, year])
+  @@map("wage_records")
+}
+
+// ============================================
+// FINANCE AND EXPENSES
+// ============================================
+
+model Expense {
+  id          String   @id @default(cuid())
+  category    String
+  description String
+  amount      Int      // in paise
+  expenseDate DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([expenseDate])
+  @@map("expenses")
+}
+
+// ============================================
+// SETTINGS AND CONFIGURATION
+// ============================================
+
+model Setting {
   id        String   @id @default(cuid())
-  dispatchId String  @unique
-  buyer     String
-  order     String
-  rolls     Int
-  metres    Float
-  date      DateTime
-  vehicle   String?
-  driver    String?
-  status    String   // PENDING, DISPATCHED, DELIVERED
+  key       String   @unique
+  value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@map("dispatches")
-}
-
-model Invoice {
-  id        String   @id @default(cuid())
-  invoiceId String   @unique
-  buyer     String
-  dispatch  String
-  amount    Float
-  paid      Float
-  balance   Float
-  date      DateTime
-  status    String   // PARTIAL, UNPAID, PAID
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("invoices")
-}
-
-
-
-
-model GateEntry {
-  id        String   @id @default(cuid())
-  grnId     String   @unique @default(cuid())
-  supplier  String
-  yarn      String
-  colour    String?
-  lotBatch  String?
-  qty       Float
-  bags      Int
-  challan   String
-  vehicle   String
-  notes     String?
-  date      DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("gate_entries")
-}
-
-model PurchaseOrder {
-  id        String   @id @default(cuid())
-  poId      String   @unique @default(cuid())
-  supplier  String
-  yarn      String
-  qty       Float
-  rate      Float
-  total     Float
-  expected  DateTime
-  status    String   // RAISED, PARTIALLY_RECEIVED, RECEIVED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("purchase_orders")
-}
-
-
-model MillSetting {
-  id            String   @id @default(cuid())
-  name          String
-  address       String
-  gstin         String
-  invoicePrefix String
-  currency      String   @default("INR (₹)")
-  timezone      String   @default("Asia/Kolkata (IST +05:30)")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@map("mill_settings")
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  type      String   // e.g., 'announcement', 'machine-down', 'low-stock'
-  message   String
-  severity  String   // e.g., 'info', 'warning', 'danger'
-  author    String   @default("System")
-  createdAt DateTime @default(now())
-
-  @@map("notifications")
-}
-
-model Settings {
-  id             String   @id @default("singleton")
-  stages         String[] @default(["Spinning", "Weaving", "Dyeing", "Finishing"])
-  fabrics        String[] @default(["Cotton Voile", "Linen Blend", "Silk Chiffon", "Denim", "Poly Cotton", "Georgette"])
-  defects        String[] @default(["Colour Mismatch", "Uneven Weave", "Stain", "Hole", "Other"])
-  attendanceOpen Boolean  @default(false)
-  updatedAt      DateTime @updatedAt
 
   @@map("settings")
+}
+
+// ============================================
+// AUDIT LOG (append-only)
+// ============================================
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  userEmail     String?
+  userRole      String?
+  action        String   // CREATE, UPDATE, DELETE, STATUS_CHANGE, LOGIN, etc.
+  entity        String   // Order, Machine, Roll, Dispatch, Invoice, Attendance, etc.
+  entityId      String?
+  oldValue      String?  // JSON string of previous state
+  newValue      String?  // JSON string of new state
+  ipAddress     String?
+  correlationId String?  // Request correlation ID for tracing
+  notes         String?
+  metadata      String?  // Additional JSON metadata
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+  @@index([correlationId])
+  @@map("audit_logs")
+}
+
+// ============================================
+// ATTENDANCE SESSION QR (for QR-based attendance)
+// ============================================
+
+model AttendanceSession {
+  id          String   @id @default(cuid())
+  shiftId     String
+  sessionCode String   @unique
+  date        DateTime
+  expiresAt   DateTime
+  createdBy   String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  shift Shift @relation(fields: [shiftId], references: [id])
+
+  @@index([sessionCode])
+  @@index([isActive])
+  @@map("attendance_sessions")
 }
