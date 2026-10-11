@@ -238,9 +238,9 @@ export const mockMachineOutput = [
 ]
 
 export const mockTopPerformers = [
-  { rank: 1, name: 'Anil Verma',    role: 'Weaver',   machine: 'M-03', output: 410, badge: '🥇' },
-  { rank: 2, name: 'Vijay Nair',    role: 'Weaver',   machine: 'M-11', output: 360, badge: '🥈' },
-  { rank: 3, name: 'Ravi Mehta',    role: 'Weaver',   machine: 'M-05', output: 380, badge: '🥉' },
+  { rank: 1, name: 'Anil Verma',    role: 'Weaver',   machine: 'M-03', output: 410 },
+  { rank: 2, name: 'Vijay Nair',    role: 'Weaver',   machine: 'M-11', output: 360 },
+  { rank: 3, name: 'Ravi Mehta',    role: 'Weaver',   machine: 'M-05', output: 380 },
   { rank: 4, name: 'Mohan Kumar',   role: 'Spinner',  machine: 'M-01', output: 320, badge: '' },
   { rank: 5, name: 'Sanjay Tiwari', role: 'Dyer',     machine: 'M-06', output: 250, badge: '' },
 ]

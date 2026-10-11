@@ -1,158 +1,94 @@
 import express from 'express';
-import * as productionController from '../controllers/production.controller.js';
-import { authenticate, authorize } from '../middleware/auth.js';
-import {
-  createMachineValidator,
-  updateMachineValidator,
-  updateMachineStatusValidator,
-  createWorkAssignmentValidator,
-  updateWorkAssignmentValidator,
-  createProductionLogValidator,
-  createDowntimeLogValidator,
-  updateDowntimeLogValidator,
-} from '../validators/production.validator.js';
+import prisma from '../config/database.js';
 
 const router = express.Router();
 
-// All production routes require authentication
-router.use(authenticate);
+router.get('/downtime', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: [
+        { machine: 'Loom-04', reason: 'Motor fault', duration: '1h 15m', time: '10:15 AM' },
+        { machine: 'Spin-02', reason: 'Thread break', duration: '20m', time: '02:30 PM' },
+      ]
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
-// ============================================
-// MACHINES - Owner, Supervisor
-// ============================================
+router.post('/:id/start', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { orderId, operatorId } = req.body;
+    
+    // Find machine by ID or machineId
+    const machine = await prisma.machine.findFirst({
+      where: { OR: [{ id }, { machineId: id }] }
+    });
 
-router.post(
-  '/machines',
-  authorize('OWNER'),
-  createMachineValidator,
-  productionController.createMachine
-);
+    if (!machine) {
+      return res.status(404).json({ success: false, message: `Machine ${id} not found` });
+    }
 
-router.get(
-  '/machines',
-  authorize('OWNER', 'SUPERVISOR', 'INSPECTOR'),
-  productionController.getAllMachines
-);
+    const updated = await prisma.machine.update({
+      where: { id: machine.id },
+      data: {
+        status: 'RUNNING',
+        order: orderId || machine.order || null,
+        operator: operatorId || machine.operator || null,
+      }
+    });
 
-router.get(
-  '/machines/board',
-  authorize('OWNER', 'SUPERVISOR', 'INSPECTOR'),
-  productionController.getMachineBoard
-);
+    res.json({ success: true, message: `Machine ${machine.machineId} assigned and started`, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
-router.get(
-  '/machines/:id',
-  authorize('OWNER', 'SUPERVISOR', 'INSPECTOR'),
-  productionController.getMachineById
-);
+router.post('/:id/stop', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
 
-router.put(
-  '/machines/:id',
-  authorize('OWNER', 'SUPERVISOR'),
-  updateMachineValidator,
-  productionController.updateMachine
-);
+    const machine = await prisma.machine.findFirst({
+      where: { OR: [{ id }, { machineId: id }] }
+    });
 
-router.patch(
-  '/machines/:id/status',
-  authorize('OWNER', 'SUPERVISOR'),
-  updateMachineStatusValidator,
-  productionController.updateMachineStatus
-);
+    if (!machine) {
+      return res.status(404).json({ success: false, message: `Machine ${id} not found` });
+    }
 
-router.delete(
-  '/machines/:id',
-  authorize('OWNER'),
-  productionController.deleteMachine
-);
+    const newStatus = (reason && reason.toLowerCase().includes('breakdown')) ? 'BREAKDOWN' : 'IDLE';
 
-// ============================================
-// WORK ASSIGNMENTS - Supervisor
-// ============================================
+    const updated = await prisma.machine.update({
+      where: { id: machine.id },
+      data: {
+        status: newStatus,
+        order: newStatus === 'IDLE' ? null : machine.order,
+      }
+    });
 
-router.post(
-  '/assignments',
-  authorize('SUPERVISOR'),
-  createWorkAssignmentValidator,
-  productionController.createWorkAssignment
-);
+    // If breakdown, log a downtime event
+    if (newStatus === 'BREAKDOWN') {
+      try {
+        await prisma.downtime.create({
+          data: {
+            machineId: machine.machineId,
+            reason: reason || 'Machine Breakdown',
+            status: 'OPEN',
+            start: new Date(),
+          }
+        });
+      } catch (e) {
+        console.error('Failed to log downtime:', e);
+      }
+    }
 
-router.get(
-  '/assignments',
-  authorize('OWNER', 'SUPERVISOR'),
-  productionController.getAllWorkAssignments
-);
-
-router.get(
-  '/assignments/:id',
-  authorize('OWNER', 'SUPERVISOR'),
-  productionController.getWorkAssignmentById
-);
-
-router.put(
-  '/assignments/:id',
-  authorize('SUPERVISOR'),
-  updateWorkAssignmentValidator,
-  productionController.updateWorkAssignment
-);
-
-router.post(
-  '/assignments/:id/complete',
-  authorize('SUPERVISOR'),
-  productionController.completeWorkAssignment
-);
-
-// ============================================
-// PRODUCTION LOGS - Supervisor
-// ============================================
-
-router.post(
-  '/production-logs',
-  authorize('SUPERVISOR'),
-  createProductionLogValidator,
-  productionController.createProductionLog
-);
-
-router.get(
-  '/production-logs',
-  authorize('OWNER', 'SUPERVISOR', 'ACCOUNTS'),
-  productionController.getAllProductionLogs
-);
-
-router.get(
-  '/production-logs/:id',
-  authorize('OWNER', 'SUPERVISOR', 'ACCOUNTS'),
-  productionController.getProductionLogById
-);
-
-// ============================================
-// DOWNTIME LOGS - Supervisor
-// ============================================
-
-router.post(
-  '/downtime',
-  authorize('SUPERVISOR'),
-  createDowntimeLogValidator,
-  productionController.createDowntimeLog
-);
-
-router.get(
-  '/downtime',
-  authorize('OWNER', 'SUPERVISOR'),
-  productionController.getAllDowntimeLogs
-);
-
-router.get(
-  '/downtime/:id',
-  authorize('OWNER', 'SUPERVISOR'),
-  productionController.getDowntimeLogById
-);
-
-router.put(
-  '/downtime/:id',
-  authorize('SUPERVISOR'),
-  updateDowntimeLogValidator,
-  productionController.updateDowntimeLog
-);
+    res.json({ success: true, message: `Machine ${machine.machineId} marked as ${newStatus}`, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 export default router;

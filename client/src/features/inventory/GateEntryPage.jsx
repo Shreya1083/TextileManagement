@@ -210,7 +210,7 @@ export default function GateEntryPage() {
           <tbody>
             {grns.map(g => (
               <tr key={g.id}>
-                <td className="font-mono text-xs text-primary-400 font-semibold">{g.id}</td>
+                <td className="font-mono text-xs text-primary-400 font-semibold">{g.grnId}</td>
                 <td className="font-semibold text-zinc-200">{g.supplier}</td>
                 <td>{g.yarn}</td>
                 <td className="text-zinc-400">{g.colour}</td>

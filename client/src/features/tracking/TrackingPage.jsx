@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Package, CheckCircle, Truck, Factory, Eye, Layers } from 'lucide-react'
-import { mockOrders } from '../../mocks/data'
+import { useOrderTracking } from '../../hooks/useAPI'
 import { formatDate, cn } from '../../lib/utils'
 
 const STAGES = [
@@ -22,14 +22,16 @@ const COLOR_MAP = {
 
 export default function TrackingPage() {
   const [query, setQuery] = useState('')
-  const [found, setFound] = useState(null)
-  const [error, setError] = useState('')
+  const [searchId, setSearchId] = useState(null)
+  
+  const { data: orderData, isLoading, error: apiError } = useOrderTracking(searchId)
+  const found = orderData?.data
 
   const search = (e) => {
     e.preventDefault()
-    const o = mockOrders.find(o => o.id.toLowerCase() === query.trim().toLowerCase())
-    if (o) { setFound(o); setError('') }
-    else   { setFound(null); setError('Order not found. Please check the order number.') }
+    if (query.trim()) {
+      setSearchId(query.trim())
+    }
   }
 
   const currentStep = found ? (IDX[found.status] ?? 0) : 0
@@ -70,24 +72,16 @@ export default function TrackingPage() {
             </button>
           </form>
 
-          {error && (
+          {apiError && (
             <div className="flex items-center gap-2.5 px-4 py-3 bg-red-500/10 border border-red-500/25 rounded-2xl text-sm text-red-400 mb-6">
               <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-              {error}
+              {apiError.message || 'Error tracking order'}
             </div>
           )}
 
-          {!found && !error && (
+          {!found && !apiError && (
             <div className="text-center">
-              <p className="text-xs text-zinc-600 mb-3">Demo orders to try:</p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {mockOrders.slice(0, 5).map(o => (
-                  <button key={o.id} onClick={() => setQuery(o.id)}
-                    className="btn-secondary btn-sm font-mono text-primary-400">
-                    {o.id}
-                  </button>
-                ))}
-              </div>
+              <p className="text-xs text-zinc-600 mb-3">Enter an order number (e.g. ORD-2024) above to track its status.</p>
             </div>
           )}
 

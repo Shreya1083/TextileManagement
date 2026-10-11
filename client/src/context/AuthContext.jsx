@@ -30,13 +30,13 @@ export const DEMO_USERS = [
 
 // ── The roles shown in the login dropdown ─────────────────────────────────
 export const ROLE_OPTIONS = [
-  { role: 'owner',      label: 'Owner / Admin',          desc: 'Full access to all modules',           icon: '👑', color: 'from-primary-500 to-violet-600' },
-  { role: 'supervisor', label: 'Production Supervisor',  desc: 'Machine board, production & downtime', icon: '🏭', color: 'from-amber-500 to-orange-600'   },
-  { role: 'inspector',  label: 'Quality Inspector',      desc: 'Inspection queue & defect reports',    icon: '🔍', color: 'from-emerald-500 to-teal-600'   },
-  { role: 'store',      label: 'Store Keeper',           desc: 'Inventory, gate entry & dispatch',     icon: '📦', color: 'from-cyan-500 to-blue-600'      },
-  { role: 'accounts',   label: 'Office / Accounts',      desc: 'Orders, invoices, payroll & finance',  icon: '💼', color: 'from-pink-500 to-rose-600'      },
-  { role: 'worker',     label: 'Worker',                 desc: 'Personal attendance & wages dashboard',icon: '👷', color: 'from-zinc-500 to-zinc-600'      },
-  { role: 'buyer',      label: 'Buyer',                  desc: 'Track your own orders',                icon: '🛒', color: 'from-teal-500 to-cyan-600'      },
+  { role: 'owner',      label: 'Admin',                  desc: 'Full access to all modules',           icon: 'shield',    color: 'from-primary-500 to-violet-600' },
+  { role: 'supervisor', label: 'Production Supervisor',  desc: 'Machine board, production & downtime', icon: 'factory',   color: 'from-amber-500 to-orange-600'   },
+  { role: 'inspector',  label: 'Quality Inspector',      desc: 'Inspection queue & defect reports',    icon: 'search',    color: 'from-emerald-500 to-teal-600'   },
+  { role: 'store',      label: 'Store Keeper',           desc: 'Inventory, gate entry & dispatch',     icon: 'package',   color: 'from-cyan-500 to-blue-600'      },
+  { role: 'accounts',   label: 'Office / Accounts',      desc: 'Orders, invoices, payroll & finance',  icon: 'briefcase', color: 'from-pink-500 to-rose-600'      },
+  { role: 'worker',     label: 'Worker',                 desc: 'Personal attendance & wages dashboard',icon: 'user',      color: 'from-zinc-500 to-zinc-600'      },
+  { role: 'buyer',      label: 'Buyer',                  desc: 'Track your own orders',                icon: 'shopping-cart', color: 'from-teal-500 to-cyan-600' },
 ]
 
 // ── Workers list for the secondary picker (shown when role = worker) ──────
@@ -55,7 +55,7 @@ export const ROLE_HOME = {
 
 // ── Human-readable role labels ────────────────────────────────────────────
 export const ROLE_LABELS = {
-  owner:      'Owner / Admin',
+  owner:      'Admin',
   store:      'Store Keeper',
   supervisor: 'Production Supervisor',
   inspector:  'Quality Inspector',

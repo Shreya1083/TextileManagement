@@ -11,7 +11,11 @@
   html { @apply h-full; }
 
   body {
-    @apply h-full bg-zinc-950 text-zinc-100 font-sans antialiased;
+    @apply h-full text-zinc-100 font-sans antialiased;
+    background-color: #09090b;
+    background-image:
+      radial-gradient(ellipse at 12% 0%, rgba(79, 70, 229, 0.12), transparent 38rem),
+      radial-gradient(ellipse at 88% 18%, rgba(14, 116, 144, 0.08), transparent 34rem);
     font-feature-settings: 'cv11', 'ss01', 'ss03';
   }
 
@@ -43,15 +47,20 @@
 
   /* —— Card ————————————————————————————————————————————— */
   .card {
-    @apply relative bg-zinc-900 border border-zinc-800/80 rounded-2xl shadow-card
-           transition-all duration-200;
+    @apply relative border rounded-2xl transition-all duration-200;
+    background: linear-gradient(145deg, rgba(39, 39, 42, 0.78), rgba(24, 24, 27, 0.72));
+    border-color: rgba(161, 161, 170, 0.14);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
   .card-hover {
-    @apply card hover:border-primary-500/40 hover:shadow-card-hover hover:-translate-y-0.5;
+    @apply card hover:border-primary-400/40 hover:shadow-card-hover hover:-translate-y-0.5;
   }
   .card-glass {
-    @apply relative bg-white/[0.04] backdrop-blur-xl border border-white/[0.08]
-           rounded-2xl shadow-card;
+    @apply card;
+    background: linear-gradient(145deg, rgba(63, 63, 70, 0.3), rgba(24, 24, 27, 0.45));
+    border-color: rgba(212, 212, 216, 0.12);
   }
 
   /* —— Stat Card —————————————————————————————————————— */
@@ -105,11 +114,12 @@
 
   /* —— Inputs ———————————————————————————————————————————— */
   .input {
-    @apply w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2.5
+    @apply w-full bg-zinc-900/70 border border-zinc-700/70 rounded-xl px-3 py-2.5
            text-sm text-zinc-100 placeholder-zinc-500
            transition-all duration-150
            hover:border-zinc-600
            focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20;
+    backdrop-filter: blur(12px);
   }
   .input-sm {
     @apply input py-1.5 text-xs rounded-lg;

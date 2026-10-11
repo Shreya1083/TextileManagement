@@ -2,15 +2,33 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth }  from '../../context/AuthContext'
 import { ROLE_OPTIONS, WORKER_LIST, ROLE_HOME } from '../../context/AuthContext'
-import { Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown, ChevronRight } from 'lucide-react'
+import {
+  Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown,
+  Boxes, Factory, Search, BarChart3, Shield, Package, Briefcase, User, ShoppingCart,
+} from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const FEATURES = [
-  { icon: '🧵', title: 'End-to-End Traceability',  desc: 'Track every yarn lot to finished roll and dispatch' },
-  { icon: '⚙️', title: 'Live Machine Monitoring',  desc: 'Real-time status for every machine on the floor'   },
-  { icon: '🔍', title: 'Smart Quality Control',    desc: 'QR-based roll inspection with defect analytics'     },
-  { icon: '📊', title: 'Owner Analytics',          desc: 'Revenue, P&L and order profitability at a glance'  },
+  { icon: Boxes, title: 'End-to-End Traceability',  desc: 'Track every yarn lot to finished roll and dispatch' },
+  { icon: Factory, title: 'Live Machine Monitoring',  desc: 'Real-time status for every machine on the floor'   },
+  { icon: Search, title: 'Smart Quality Control',    desc: 'QR-based roll inspection with defect analytics'     },
+  { icon: BarChart3, title: 'Admin Analytics',          desc: 'Revenue, P&L and order profitability at a glance'  },
 ]
+
+const ROLE_ICONS = {
+  shield: Shield,
+  factory: Factory,
+  search: Search,
+  package: Package,
+  briefcase: Briefcase,
+  user: User,
+  'shopping-cart': ShoppingCart,
+}
+
+function RoleIcon({ name }) {
+  const Icon = ROLE_ICONS[name] || User
+  return <Icon size={17} />
+}
 
 export default function LoginPage() {
   const { login }    = useAuth()
@@ -26,7 +44,7 @@ export default function LoginPage() {
   const [selectedWorker, setSelectedWorker] = useState(WORKER_LIST[0])
   const [showWorkerMenu, setShowWorkerMenu] = useState(false)
 
-  const [password, setPassword] = useState('demo123')
+  const [password, setPassword] = useState('Admin@123')
   const [showPw, setShowPw]     = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
@@ -66,11 +84,18 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    await new Promise(r => setTimeout(r, 550))
-    const res = login(loginEmail, password)
+    
+    // Simulate slight delay for UX
+    await new Promise(r => setTimeout(r, 300))
+    
+    const res = await login(loginEmail, password)
     setLoading(false)
-    if (res.ok) navigate(ROLE_HOME[res.role] || '/dashboard')
-    else setError(res.error)
+    
+    if (res.ok) {
+      navigate(ROLE_HOME[res.role] || '/dashboard')
+    } else {
+      setError(res.error)
+    }
   }
 
   return (
@@ -89,8 +114,8 @@ export default function LoginPage() {
             <Layers size={20} className="text-white" />
           </div>
           <div>
-            <p className="font-bold text-zinc-50 text-base leading-tight">Everest Textile Mills</p>
-            <p className="text-2xs text-zinc-500 leading-tight uppercase tracking-widest">ERP Platform</p>
+            <p className="font-bold text-zinc-50 text-base leading-tight">Textile ERP</p>
+            <p className="text-2xs text-zinc-500 leading-tight uppercase tracking-widest">Management System</p>
           </div>
         </div>
 
@@ -98,23 +123,25 @@ export default function LoginPage() {
         <div className="relative">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-500/15 border border-primary-500/25 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-primary-400 animate-pulse" />
-            <span className="text-xs font-semibold text-primary-300 uppercase tracking-wider">Smart Manufacturing ERP</span>
+            <span className="text-xs font-semibold text-primary-300 uppercase tracking-wider">Manufacturing ERP</span>
           </div>
           <h1 className="text-4xl xl:text-5xl font-bold text-zinc-50 leading-[1.1] tracking-tight mb-4">
-            One platform for<br />
-            <span className="text-gradient-primary">every thread</span><br />
-            of your factory.
+            Streamline your<br />
+            <span className="text-gradient-primary">textile operations</span><br />
+            with ease.
           </h1>
           <p className="text-zinc-400 text-base leading-relaxed max-w-md">
-            From raw yarn at the gate to invoiced dispatch — complete traceability,
-            real-time production visibility and smart workforce management.
+            Complete manufacturing management - from inventory to production,
+            quality control to dispatch.
           </p>
           <div className="grid grid-cols-2 gap-3 mt-8">
-            {FEATURES.map(f => (
-              <div key={f.title} className="card-glass p-4 rounded-2xl">
-                <span className="text-xl mb-2 block">{f.icon}</span>
-                <p className="text-xs font-semibold text-zinc-200">{f.title}</p>
-                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{f.desc}</p>
+            {FEATURES.map(({ icon: Icon, ...feature }) => (
+              <div key={feature.title} className="card-glass p-4 rounded-2xl">
+                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/15 text-primary-300">
+                  <Icon size={17} />
+                </span>
+                <p className="text-xs font-semibold text-zinc-200">{feature.title}</p>
+                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -123,9 +150,9 @@ export default function LoginPage() {
         {/* Stats */}
         <div className="relative flex items-center gap-8">
           {[
-            { value: '12,400+', label: 'Rolls tracked'  },
-            { value: '94.2%',   label: 'Machine uptime' },
-            { value: '₹18.4L',  label: 'Sep revenue'    },
+            { value: '24/7', label: 'Support'  },
+            { value: 'Secure',   label: 'Data protection' },
+            { value: 'Fast',  label: 'Performance'    },
           ].map(s => (
             <div key={s.label}>
               <p className="text-xl font-bold text-zinc-50">{s.value}</p>
@@ -144,7 +171,7 @@ export default function LoginPage() {
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-violet-600 shadow-glow flex items-center justify-center">
               <Layers size={16} className="text-white" />
             </div>
-            <p className="font-bold text-zinc-100">Everest Textile ERP</p>
+            <p className="font-bold text-zinc-100">Textile ERP</p>
           </div>
 
           <div className="mb-8">
@@ -169,10 +196,10 @@ export default function LoginPage() {
                 )}
               >
                 <div className={cn(
-                  'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-lg',
+                  'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white',
                   selectedRole.color,
                 )}>
-                  {selectedRole.icon}
+                  <RoleIcon name={selectedRole.icon} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-zinc-100 leading-tight">{selectedRole.label}</p>
@@ -195,10 +222,10 @@ export default function LoginPage() {
                       )}
                     >
                       <div className={cn(
-                        'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-lg',
+                        'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white',
                         opt.color,
                       )}>
-                        {opt.icon}
+                        <RoleIcon name={opt.icon} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-zinc-200 leading-tight">{opt.label}</p>
@@ -290,7 +317,7 @@ export default function LoginPage() {
                 </button>
               </div>
               <p className="text-2xs text-zinc-600 mt-1.5">
-                All demo accounts use password <code className="text-primary-400 font-mono">demo123</code>
+                Password: <code className="text-primary-400 font-mono">Admin@123</code>
               </p>
             </div>
 

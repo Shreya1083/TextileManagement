@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Factory, Package, ShoppingCart, Cog, Eye,
   Truck, FileText, Users, DollarSign, Settings, LogOut,
   Sparkles, BarChart3, ClipboardCheck, Boxes, UserCheck,
-  AlertTriangle, X, Layers, Wallet, CalendarCheck, Home,
+  AlertTriangle, X, Layers, Wallet, Home,
   ChevronDown,
 } from 'lucide-react'
 
@@ -16,7 +16,7 @@ const NAV = [
     group: 'Overview',
     collapsible: false,
     items: [
-      { to: '/dashboard',          label: 'Dashboard',          icon: LayoutDashboard, roles: ['owner'] },
+      { to: '/dashboard',          label: 'Admin',               icon: LayoutDashboard, roles: ['owner'] },
       { to: '/worker/my-dashboard', label: 'My Dashboard',       icon: Home,            roles: ['worker'] },
     ],
   },
@@ -170,7 +170,7 @@ export function Sidebar({ open, onClose }) {
 
       <aside className={cn(
         'fixed top-0 left-0 h-full z-50 flex flex-col w-[250px]',
-        'bg-zinc-950 border-r border-zinc-800/60',
+        'bg-zinc-950/85 backdrop-blur-2xl border-r border-zinc-800/60',
         'transition-transform duration-300 ease-spring',
         'lg:translate-x-0 lg:static lg:z-auto',
         open ? 'translate-x-0' : '-translate-x-full',

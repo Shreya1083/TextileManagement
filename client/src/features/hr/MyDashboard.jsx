@@ -7,6 +7,7 @@ import {
   CheckCircle2, XCircle, Clock,
   Banknote, TrendingUp, Zap, Download,
   UserCheck, Loader2, AlertTriangle, RefreshCw, FileText, Lock,
+  CalendarDays, Star, Award, ClipboardList, Sparkles,
 } from 'lucide-react'
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { useAuth }     from '../../context/AuthContext'
@@ -265,7 +266,7 @@ export default function MyDashboard() {
 
       {/* ── Header ── */}
       <PageHeader
-        title={`${greeting()}, ${profile.name.split(' ')[0]} 👋`}
+        title={`${greeting()}, ${profile.name.split(' ')[0]}`}
         subtitle={`Floor Worker · ${profile.role} · ${profile.dept} · ${today}`}
       />
 
@@ -339,10 +340,10 @@ export default function MyDashboard() {
         {/* Tab bar */}
         <div className="flex border-b border-zinc-800/80 px-1 pt-1">
           {[
-            { key: 'attendance', label: '📅 Attendance Calendar' },
-            { key: 'wages',      label: '💰 Wage Breakdown'      },
-            { key: 'trend',      label: '📈 Earnings Trend'      },
-            { key: 'performance',label: '⭐ Performance'          },
+            { key: 'attendance', label: 'Attendance Calendar', icon: CalendarDays },
+            { key: 'wages',      label: 'Wage Breakdown', icon: Banknote },
+            { key: 'trend',      label: 'Earnings Trend', icon: TrendingUp },
+            { key: 'performance',label: 'Performance', icon: Star },
           ].map(t => (
             <button
               key={t.key}
@@ -354,6 +355,7 @@ export default function MyDashboard() {
                   : 'border-transparent text-zinc-500 hover:text-zinc-300',
               )}
             >
+              <t.icon size={14} className="inline-block mr-2" />
               {t.label}
             </button>
           ))}
@@ -534,26 +536,28 @@ export default function MyDashboard() {
                 <div className="space-y-2.5">
                   {[
                     {
-                      icon: attendPct >= 95 ? '🥇' : attendPct >= 90 ? '🥈' : '🥉',
+                      icon: Award,
                       title: `${attendPct}% attendance rate`,
                       sub: attendPct >= 95 ? 'Excellent! Top performer' : attendPct >= 90 ? 'Good attendance' : 'Can improve',
                       color: attendPct >= 95 ? 'text-emerald-400' : attendPct >= 90 ? 'text-amber-400' : 'text-zinc-400',
                     },
                     {
-                      icon: profile.overtimeHrs > 5 ? '⚡' : '📋',
+                      icon: profile.overtimeHrs > 5 ? Zap : ClipboardList,
                       title: `${profile.overtimeHrs} overtime hours`,
                       sub: profile.overtimeHrs > 5 ? 'Extra dedication this month' : 'Standard hours',
                       color: 'text-primary-400',
                     },
                     {
-                      icon: profile.daysAbsent === 0 ? '🌟' : '📅',
+                      icon: profile.daysAbsent === 0 ? Sparkles : CalendarDays,
                       title: profile.daysAbsent === 0 ? 'Perfect attendance!' : `${profile.daysAbsent} absent day(s)`,
                       sub: profile.daysAbsent === 0 ? 'Zero absences this month' : 'Please inform supervisor in advance',
                       color: profile.daysAbsent === 0 ? 'text-emerald-400' : 'text-amber-400',
                     },
                   ].map((a, i) => (
                     <div key={i} className="flex items-start gap-3 p-3 bg-zinc-800/40 rounded-xl">
-                      <span className="text-xl shrink-0">{a.icon}</span>
+                      <span className={cn('mt-0.5 shrink-0', a.color)}>
+                        <a.icon size={17} />
+                      </span>
                       <div>
                         <p className={cn('text-sm font-semibold', a.color)}>{a.title}</p>
                         <p className="text-2xs text-zinc-500 mt-0.5">{a.sub}</p>

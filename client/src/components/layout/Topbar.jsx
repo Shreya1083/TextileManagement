@@ -224,7 +224,7 @@ export function Topbar({ onMenuClick }) {
   }
 
   return (
-    <header className="relative z-30 h-16 flex items-center px-4 gap-3 shrink-0 bg-zinc-950 border-b border-zinc-800/60">
+    <header className="relative z-30 h-16 flex items-center px-4 gap-3 shrink-0 bg-zinc-950/75 backdrop-blur-2xl border-b border-zinc-800/60">
       {/* Mobile navigation */}
       <button
         type="button"

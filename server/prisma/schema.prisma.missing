@@ -1,0 +1,43 @@
+
+model Supplier {
+  id           String   @id @default(cuid())
+  name         String
+  type         String
+  contact      String
+  email        String?
+  rating       Float?
+  paymentTerms String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("suppliers")
+}
+
+model InventoryItem {
+  id        String   @id @default(cuid())
+  type      String
+  color     String
+  current   Float
+  reserved  Float    @default(0)
+  reorder   Float
+  unit      String
+  status    String   // OK, LOW
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("inventory_items")
+}
+
+model Roll {
+  id        String   @id @default(cuid())
+  order     String
+  machine   String
+  length    Float
+  produced  DateTime @default(now())
+  inspector String?
+  status    String   // PENDING, PASSED, REJECTED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("rolls")
+}

@@ -15,8 +15,9 @@ import { Modal }       from '../../components/ui/Modal'
 import { useToast }    from '../../components/ui/Toast'
 import { useAuth }     from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
-import { formatCurrency, formatCurrencyFull, formatDate, cn } from '../../lib/utils'
+import { formatCurrency, formatCurrencyFull, cn } from '../../lib/utils'
 import { exportPDF }   from '../../lib/exportUtils'
+import { DashboardSubheader } from './DashboardSubheader'
 import {
   mockDailySummary, mockDailyShifts, mockHourlyOutput,
   mockMachineOutput, mockTopPerformers, mockEODTimeline,
@@ -175,6 +176,8 @@ export default function EODDashboard() {
           </div>
         }
       />
+
+      <DashboardSubheader />
 
       {/* ── Day hero strip ── */}
       <div className="card overflow-hidden">
@@ -431,7 +434,7 @@ export default function EODDashboard() {
             {mockTopPerformers.map(p => (
               <li key={p.rank} className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-800/30 transition-colors">
                 <div className="w-7 h-7 rounded-xl bg-zinc-800 flex items-center justify-center text-sm shrink-0">
-                  {p.badge || <span className="text-zinc-600 font-bold text-xs">#{p.rank}</span>}
+                  <span className="text-zinc-300 font-bold text-xs">#{p.rank}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-zinc-200 truncate">{p.name}</p>

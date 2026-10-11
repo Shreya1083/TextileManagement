@@ -41,7 +41,7 @@ const FEATURES = [
   {
     icon: BarChart3,
     title: 'Financial Reports & Analytics',
-    desc: 'P&L, costing, and revenue dashboards for owners.',
+    desc: 'P&L, costing, and revenue dashboards for administrators.',
   },
 ]
 
@@ -204,7 +204,7 @@ export default function HomePage() {
                 </p>
                 <p className="text-zinc-500 text-sm leading-relaxed">
                   Whether you run a single-floor weaving unit or a multi-department composite mill,
-                  the platform scales with your operations — giving owners real-time visibility and
+                  the platform scales with your operations — giving administrators real-time visibility and
                   giving floor staff the tools they need to do their jobs faster.
                 </p>
 

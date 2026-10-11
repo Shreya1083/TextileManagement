@@ -8,6 +8,7 @@ import { useAuth }    from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
 import { mockMachines, mockStats } from '../../mocks/data'
 import { cn } from '../../lib/utils'
+import { DashboardSubheader } from './DashboardSubheader'
 
 const STATUS_CFG = {
   RUNNING:   {
@@ -144,6 +145,8 @@ export default function FloorDashboard() {
           </button>
         }
       />
+
+      <DashboardSubheader />
 
       {/* Summary strip — clickable to set filter */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">

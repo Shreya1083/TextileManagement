@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import {
   DollarSign, Package, Factory, CheckCircle, AlertTriangle,
-  Clock, Zap, ArrowRight, Activity, CalendarCheck, RefreshCw, X,
+  Clock, Zap, ArrowRight, Activity, RefreshCw, X,
 } from 'lucide-react'
 import { StatCard }    from '../../components/ui/StatCard'
 import { Badge }       from '../../components/ui/Badge'
@@ -19,7 +19,8 @@ import {
   mockStats, mockRevenueData, mockProductionData, mockQualityData,
   mockOrders, mockAlerts, mockMachines,
 } from '../../mocks/data'
-import { Link, NavLink } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { DashboardSubheader } from './DashboardSubheader'
 
 /* ── Chart tooltip ─────────────────────────────────────────────────────── */
 const ChartTip = ({ active, payload, label }) => {
@@ -91,7 +92,7 @@ export default function OwnerDashboard() {
     <div className="page-root">
 
       <PageHeader
-        title={`${greeting()}, ${user?.name?.split(' ')[0]} 👋`}
+        title={`${greeting()}, ${user?.name?.split(' ')[0]}`}
         subtitle={`${ROLE_LABELS[user?.role] || user?.role} · ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
         actions={
           <div className="flex items-center gap-2">
@@ -112,49 +113,7 @@ export default function OwnerDashboard() {
         }
       />
 
-      {/* ── Subheader Tabs ── */}
-      <div className="flex items-center gap-1 p-1 bg-zinc-900 border border-zinc-800/80 rounded-xl w-fit">
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
-              isActive
-                ? 'bg-primary-500/15 text-primary-300 border border-primary-500/30'
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
-            }`
-          }
-        >
-          <Activity size={14} />
-          Dashboard
-        </NavLink>
-        <NavLink
-          to="/floor"
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
-              isActive
-                ? 'bg-primary-500/15 text-primary-300 border border-primary-500/30'
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
-            }`
-          }
-        >
-          <Factory size={14} />
-          Floor Monitor
-        </NavLink>
-        <NavLink
-          to="/eod"
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
-              isActive
-                ? 'bg-primary-500/15 text-primary-300 border border-primary-500/30'
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
-            }`
-          }
-        >
-          <CalendarCheck size={14} />
-          End-of-Day Report
-        </NavLink>
-      </div>
-
+      <DashboardSubheader />
 
       {/* ── Primary KPIs ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -165,6 +124,7 @@ export default function OwnerDashboard() {
           theme="green"
           change={mockStats.revenue.change}
           accent="bg-gradient-to-r from-emerald-500 to-teal-500"
+          className="min-h-[176px] p-6 items-center animate-slide-up hover:-translate-y-1"
         />
         <StatCard
           title="Active Orders"
@@ -174,6 +134,7 @@ export default function OwnerDashboard() {
           change={mockStats.orders.change}
           changeSuffix=" orders"
           accent="bg-gradient-to-r from-primary-500 to-violet-500"
+          className="min-h-[176px] p-6 items-center animate-slide-up hover:-translate-y-1"
         />
         <StatCard
           title="Today's Output"
@@ -182,6 +143,7 @@ export default function OwnerDashboard() {
           theme="purple"
           change={mockStats.production.change}
           accent="bg-gradient-to-r from-purple-500 to-pink-500"
+          className="min-h-[176px] p-6 items-center animate-slide-up hover:-translate-y-1"
         />
         <StatCard
           title="Quality Pass Rate"
@@ -191,6 +153,7 @@ export default function OwnerDashboard() {
           change={mockStats.quality.change}
           changeSuffix="%"
           accent="bg-gradient-to-r from-teal-500 to-cyan-500"
+          className="min-h-[176px] p-6 items-center animate-slide-up hover:-translate-y-1"
         />
       </div>
 

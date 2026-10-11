@@ -1,103 +1,52 @@
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import jwt from 'jsonwebtoken'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
 
 /**
- * Generate JWT token for user with enhanced security
+ * Generate JWT token for user
  */
-export const generateToken = (user, options = {}) => {
-  const payload = {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    iat: Math.floor(Date.now() / 1000),
-    jti: crypto.randomUUID(), // JWT ID for tracking/revocation
-  };
-
-  const defaultOptions = {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    issuer: process.env.JWT_ISSUER || 'everest-textile-erp',
-    audience: process.env.JWT_AUDIENCE || 'everest-textile-users',
-    algorithm: 'HS256',
-  };
-
-  return jwt.sign(payload, process.env.JWT_SECRET, { ...defaultOptions, ...options });
-};
+export function generateToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN,
+  })
+}
 
 /**
- * Generate refresh token
+ * Verify JWT token
  */
-export const generateRefreshToken = (user) => {
-  const payload = {
-    id: user.id,
-    type: 'refresh',
-    iat: Math.floor(Date.now() / 1000),
-    jti: crypto.randomUUID(),
-  };
-
-  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
-    issuer: process.env.JWT_ISSUER || 'everest-textile-erp',
-    audience: process.env.JWT_AUDIENCE || 'everest-textile-users',
-  });
-};
-
-/**
- * Verify JWT token with enhanced validation
- */
-export const verifyToken = (token, options = {}) => {
+export function verifyToken(token) {
   try {
-    const defaultOptions = {
-      issuer: process.env.JWT_ISSUER || 'everest-textile-erp',
-      audience: process.env.JWT_AUDIENCE || 'everest-textile-users',
-      algorithms: ['HS256'],
-    };
-
-    return jwt.verify(token, process.env.JWT_SECRET, { ...defaultOptions, ...options });
+    return jwt.verify(token, JWT_SECRET)
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      throw new Error('Token has expired');
-    } else if (error.name === 'JsonWebTokenError') {
-      throw new Error('Invalid token');
-    } else if (error.name === 'NotBeforeError') {
-      throw new Error('Token not active yet');
-    }
-    
-    throw new Error('Token verification failed');
+    throw new Error('Invalid or expired token')
   }
-};
+}
 
 /**
- * Verify refresh token
+ * Decode token without verification (for debugging)
  */
-export const verifyRefreshToken = (token) => {
-  try {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
-      issuer: process.env.JWT_ISSUER || 'everest-textile-erp',
-      audience: process.env.JWT_AUDIENCE || 'everest-textile-users',
-    });
-  } catch (error) {
-    throw new Error('Invalid refresh token');
-  }
-};
+export function decodeToken(token) {
+  return jwt.decode(token)
+}
 
 /**
- * Extract token payload without verification (for debugging)
+ * Calculate token expiration date
  */
-export const decodeToken = (token) => {
-  return jwt.decode(token, { complete: true });
-};
+export function getTokenExpiration() {
+  // Parse JWT_EXPIRES_IN (e.g., '7d' -> 7 days)
+  const match = JWT_EXPIRES_IN.match(/^(\d+)([dhms])$/)
+  if (!match) return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // default 7 days
 
-/**
- * Generate secure API key for external integrations
- */
-export const generateApiKey = () => {
-  return crypto.randomBytes(32).toString('hex');
-};
+  const value = parseInt(match[1])
+  const unit = match[2]
 
-/**
- * Hash API key for storage
- */
-export const hashApiKey = (apiKey) => {
-  return crypto.createHash('sha256').update(apiKey).digest('hex');
-};
+  const milliseconds = {
+    d: value * 24 * 60 * 60 * 1000,
+    h: value * 60 * 60 * 1000,
+    m: value * 60 * 1000,
+    s: value * 1000,
+  }[unit]
+
+  return new Date(Date.now() + milliseconds)
+}

@@ -6,6 +6,9 @@ import { Modal }      from '../../components/ui/Modal'
 import { useToast }   from '../../components/ui/Toast'
 import { mockDispatches } from '../../mocks/data'
 import { formatDate } from '../../lib/utils'
+import { useDispatches, useCreateDispatch, useCreateInvoice, useBuyers, useOrders } from '../../hooks/useAPI'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 const ROLL_OPTIONS = ['EVR-2026-000185','EVR-2026-000183']
 const BLANK = { buyer:'Patel Exports', order:'ORD-2024', vehicle:'', driver:'', date: new Date().toISOString().split('T')[0], rolls:[] }
@@ -67,11 +70,11 @@ export default function DispatchPage() {
           <tbody>
             {dispatches.map(d => (
               <tr key={d.id}>
-                <td className="font-mono text-xs text-primary-400 font-semibold">{d.id}</td>
+                <td className="font-mono text-xs text-primary-400 font-semibold">{d.dispatchId}</td>
                 <td className="font-semibold text-zinc-200">{d.buyer}</td>
                 <td className="font-mono text-xs text-zinc-400">{d.order}</td>
                 <td className="text-zinc-300">{d.rolls}</td>
-                <td className="font-semibold text-zinc-200">{d.metres} m</td>
+                <td className="font-semibold text-zinc-200">{d.metres?.toLocaleString()} m</td>
                 <td className="text-zinc-400 text-xs">{formatDate(d.date)}</td>
                 <td className="font-mono text-xs text-zinc-400">{d.vehicle}</td>
                 <td><Badge status={d.status} /></td>

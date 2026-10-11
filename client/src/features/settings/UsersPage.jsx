@@ -154,7 +154,7 @@ function AddUserModal({ open, onClose, onSaved }) {
               value={form.role}
               onChange={e => handleRoleChange(e.target.value)}
             >
-              <option value="owner">Owner / Administrator</option>
+              <option value="owner">Admin</option>
               <option value="supervisor">Production Supervisor</option>
               <option value="inspector">Quality Inspector</option>
               <option value="store">Store Keeper</option>
@@ -300,7 +300,7 @@ function EditUserModal({ open, onClose, user, onSaved }) {
               value={form.role}
               onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
             >
-              <option value="owner">Owner</option>
+              <option value="owner">Admin</option>
               <option value="supervisor">Supervisor</option>
               <option value="inspector">Quality Inspector</option>
               <option value="store">Store Keeper</option>
@@ -458,7 +458,7 @@ export default function UsersPage() {
               Allow Supervisors to Mark Attendance for Other Supervisors
             </p>
             <p className="text-2xs text-zinc-500 max-w-xl">
-              When disabled, only Administrators (Owners) can mark or modify supervisor attendance. Supervisors will see protected status locks on other supervisors in the attendance muster roll.
+              When disabled, only Administrators can mark or modify supervisor attendance. Supervisors will see protected status locks on other supervisors in the attendance muster roll.
             </p>
           </div>
 

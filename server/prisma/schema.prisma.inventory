@@ -1,0 +1,35 @@
+
+model GateEntry {
+  id        String   @id @default(cuid())
+  grnId     String   @unique @default(cuid())
+  supplier  String
+  yarn      String
+  colour    String?
+  lotBatch  String?
+  qty       Float
+  bags      Int
+  challan   String
+  vehicle   String
+  notes     String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gate_entries")
+}
+
+model PurchaseOrder {
+  id        String   @id @default(cuid())
+  poId      String   @unique @default(cuid())
+  supplier  String
+  yarn      String
+  qty       Float
+  rate      Float
+  total     Float
+  expected  DateTime
+  status    String   // RAISED, PARTIALLY_RECEIVED, RECEIVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("purchase_orders")
+}

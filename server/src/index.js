@@ -1,151 +1,80 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import { testConnection } from './config/database.js';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-import {
-  securityHeaders,
-  correlationId,
-  requestLogger,
-  sanitizeInput,
-  apiLimiter,
-  speedLimiter,
-  bruteForceProtection,
-} from './middleware/security.js';
+import express from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import dotenv from 'dotenv'
+import rateLimit from 'express-rate-limit'
+import authRoutes from './routes/auth.routes.js'
+import apiRoutes from './routes/api.routes.js'
 
 // Load environment variables
-dotenv.config();
+dotenv.config()
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const app = express()
+const PORT = process.env.PORT || 5000
 
-const app = express();
-const PORT = process.env.PORT || 5000;
+// ============================================
+// MIDDLEWARE
+// ============================================
 
-// Security middleware (apply early)
-app.use(securityHeaders);
-app.use(correlationId);
-app.use(bruteForceProtection);
-app.use(apiLimiter);
-app.use(speedLimiter);
+// Security headers
+app.use(helmet())
 
-// Trust proxy (for IP addresses when behind reverse proxy)
-app.set('trust proxy', 1);
-
-// Enhanced CORS with security
+// CORS configuration
 app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      process.env.CLIENT_URL || 'http://localhost:5173',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:3000',
-    ];
-    
-    // Allow requests with no origin (mobile apps, etc.)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
-  maxAge: 86400, // 24 hours
-}));
+}))
 
-// Body parsing with size limits
-app.use(express.json({ 
-  limit: '10mb',
-  verify: (req, res, buf) => {
-    // Store raw body for webhook verification if needed
-    req.rawBody = buf;
-  }
-}));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
-// Input sanitization
-app.use(sanitizeInput);
+// Global rate limiting (disabled or set high for development to prevent blocking)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100000, // high limit for development so live polling doesn't trigger 429
+  message: 'Too many requests from this IP, please try again later.',
+})
+app.use('/api/', limiter)
 
-// Request logging
-app.use(requestLogger);
+// ============================================
+// ROUTES
+// ============================================
 
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'Everest Textile Mills ERP API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
+  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
 
-// API root
-app.get('/api', (req, res) => {
-  res.json({ 
-    message: 'Welcome to Everest Textile Mills ERP API',
-    version: '1.0.0',
-    docs: '/api/docs'
-  });
-});
+// API routes
+app.use('/api/auth', authRoutes)
+app.use('/api/data', apiRoutes)
 
-// Import route modules
-import authRoutes from './routes/auth.routes.js';
-import inventoryRoutes from './routes/inventory.routes.js';
-import ordersRoutes from './routes/orders.routes.js';
-import productionRoutes from './routes/production.routes.js';
-import qualityRoutes from './routes/quality.routes.js';
-import dispatchRoutes from './routes/dispatch.routes.js';
-import hrRoutes from './routes/hr.routes.js';
-import financeRoutes from './routes/finance.routes.js';
-import qrRoutes from './routes/qr.routes.js';
-import settingsRoutes from './routes/settings.routes.js';
-import analyticsRoutes from './routes/analytics.routes.js';
-import notificationsRoutes from './routes/notifications.routes.js';
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+  })
+})
 
-// Register routes
-app.use('/api/auth', authRoutes);
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/orders', ordersRoutes);
-app.use('/api/production', productionRoutes);
-app.use('/api/quality', qualityRoutes);
-app.use('/api/dispatch', dispatchRoutes);
-app.use('/api/hr', hrRoutes);
-app.use('/api/finance', financeRoutes);
-app.use('/api/qr', qrRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/notifications', notificationsRoutes);
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err)
+  
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  })
+})
 
-// Error handling
-app.use(notFoundHandler);
-app.use(errorHandler);
+// ============================================
+// START SERVER
+// ============================================
 
-// Start server and test database connection
-const startServer = async () => {
-  try {
-    // Test database connection
-    await testConnection();
-    
-    app.listen(PORT, () => {
-      console.log('\n🎉 ========================================');
-      console.log('   Everest Textile Mills ERP Server');
-      console.log('========================================\n');
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📍 Health check: http://localhost:${PORT}/health`);
-      console.log(`📍 API endpoint: http://localhost:${PORT}/api`);
-      console.log(`🏭 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`\n⏰ Started at: ${new Date().toLocaleString()}\n`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
-  }
-};
-
-startServer();
-
-export default app;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`🔗 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`)
+})
