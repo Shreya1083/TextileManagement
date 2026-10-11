@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Plus, Search, Building2, Phone, MapPin,
-  FileText, Mail, Globe, Hash, CheckCircle,
+  FileText, Mail, Globe, Hash,
   Edit2, Trash2, AlertTriangle, Package,
 } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'

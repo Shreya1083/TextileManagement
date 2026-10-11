@@ -43,10 +43,10 @@ export function StatCard({
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest truncate">
+        <p className="text-sm font-bold text-zinc-200 tracking-wide truncate">
           {title}
         </p>
-        <p className="mt-1.5 text-2xl font-bold text-zinc-50 tracking-tight leading-none">
+        <p className="mt-1 text-lg font-semibold text-zinc-50 tracking-tight leading-none">
           {value}
         </p>
         {sub && <p className="text-xs text-zinc-600 mt-1">{sub}</p>}

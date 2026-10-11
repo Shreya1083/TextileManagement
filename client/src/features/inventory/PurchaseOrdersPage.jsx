@@ -1,298 +1,410 @@
-import { useState } from 'react'
-import { Plus, Download, Edit2, CheckCircle2, XCircle, Clock, Check } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, Search } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
-import { Badge }      from '../../components/ui/Badge'
-import { Modal }      from '../../components/ui/Modal'
+import { Badge } from '../../components/ui/Badge'
+import { Modal } from '../../components/ui/Modal'
 import { formatDate, formatCurrencyFull } from '../../lib/utils'
 import { exportCSV }  from '../../lib/exportUtils'
 
-import {
-  usePurchaseOrders,
-  useCreatePurchaseOrder,
-  useUpdatePurchaseOrder,
-  useSuppliers
-} from '../../hooks/useAPI'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
-import { ErrorMessage } from '../../components/ui/ErrorMessage'
+const initialPOs = [
+  {
+    id: 'PO-2026-018',
+    supplier: 'Agarwal Yarns Pvt Ltd',
+    yarn: 'Cotton 60s',
+    qty: 600,
+    rate: 340,
+    total: 204000,
+    expected: '2026-10-18',
+    status: 'RAISED',
+    notes: '',
+  },
+  {
+    id: 'PO-2026-017',
+    supplier: 'Bharat Silk House',
+    yarn: 'Silk 2/120D',
+    qty: 100,
+    rate: 2200,
+    total: 220000,
+    expected: '2026-10-15',
+    status: 'PARTIALLY_RECEIVED',
+    notes: '',
+  },
+  {
+    id: 'PO-2026-016',
+    supplier: 'Krishna Fibers',
+    yarn: 'Linen 20s',
+    qty: 400,
+    rate: 480,
+    total: 192000,
+    expected: '2026-10-10',
+    status: 'RECEIVED',
+    notes: '',
+  },
+]
 
-const PO_STATUSES = ['RAISED', 'APPROVED', 'RECEIVED', 'CANCELLED']
+const BLANK_FORM = {
+  supplier: 'Agarwal Yarns Pvt Ltd',
+  yarn: 'Cotton 60s',
+  qty: '',
+  rate: '',
+  expected: new Date().toISOString().slice(0, 10),
+  notes: '',
+}
+
+const SUPPLIERS = [
+  'Agarwal Yarns Pvt Ltd',
+  'Bharat Silk House',
+  'Krishna Fibers',
+]
+
+const YARN_TYPES = ['Cotton 60s', 'Silk 2/120D', 'Linen 20s']
 
 export default function PurchaseOrdersPage() {
+  const [purchaseOrders, setPurchaseOrders] = useState(initialPOs)
   const [showAdd, setShowAdd] = useState(false)
-  const [selectedPO, setSelectedPO] = useState(null)
-  
-  const { data: posData, isLoading, error, refetch } = usePurchaseOrders()
-  const pos = posData?.data || []
+  const [selectedPo, setSelectedPo] = useState(null)
+  const [search, setSearch] = useState('')
+  const [form, setForm] = useState(BLANK_FORM)
+  const [errors, setErrors] = useState({})
 
-  const { data: suppliersData } = useSuppliers()
-  const suppliers = suppliersData?.data || []
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return purchaseOrders
 
-  const createPOMutation = useCreatePurchaseOrder()
-  const updatePOMutation = useUpdatePurchaseOrder()
+    return purchaseOrders.filter((po) =>
+      [po.id, po.supplier, po.yarn, po.status]
+        .some((value) => String(value ?? '').toLowerCase().includes(query)),
+    )
+  }, [purchaseOrders, search])
 
-  const [formQty, setFormQty] = useState('')
-  const [formRate, setFormRate] = useState('')
-
-  const handleExport = () => {
-    exportCSV({
-      filename: `PurchaseOrders_${new Date().toISOString().split('T')[0]}`,
-      columns: ['PO ID', 'Supplier', 'Yarn', 'Qty (kg)', 'Rate (Rs/kg)', 'Total (Rs)', 'Expected Date', 'Status'],
-      rows: pos.map(p => [
-        p.poId,
-        p.supplier,
-        p.yarn,
-        p.qty,
-        p.rate,
-        p.total,
-        formatDate(p.expected),
-        p.status
-      ])
-    })
+  const setField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setErrors((current) => ({ ...current, [field]: '' }))
   }
 
-  const handleStatusChange = async (po, newStatus) => {
-    try {
-      await updatePOMutation.mutateAsync({
-        id: po.id,
-        status: newStatus
-      })
-      if (selectedPO?.id === po.id) {
-        setSelectedPO(prev => ({ ...prev, status: newStatus }))
-      }
-    } catch (err) {
-      alert('Failed to update PO status: ' + (err?.message || err))
+  const closeAddModal = () => {
+    setShowAdd(false)
+    setForm(BLANK_FORM)
+    setErrors({})
+  }
+
+  const handleCreatePO = (event) => {
+    event.preventDefault()
+
+    const nextErrors = {}
+    const qty = Number(form.qty)
+    const rate = Number(form.rate)
+
+    if (!form.supplier) nextErrors.supplier = 'Select a supplier'
+    if (!form.yarn) nextErrors.yarn = 'Select a yarn type'
+    if (!form.qty || !Number.isFinite(qty) || qty <= 0) {
+      nextErrors.qty = 'Enter a quantity greater than zero'
     }
+    if (!form.rate || !Number.isFinite(rate) || rate <= 0) {
+      nextErrors.rate = 'Enter a rate greater than zero'
+    }
+    if (!form.expected) nextErrors.expected = 'Select an expected date'
+
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors)
+      return
+    }
+
+    const nextNumber = Math.max(
+      0,
+      ...purchaseOrders.map((po) => {
+        const match = po.id.match(/PO-\d{4}-(\d+)/)
+        return match ? Number(match[1]) : 0
+      }),
+    ) + 1
+
+    const newPO = {
+      id: `PO-${new Date().getFullYear()}-${String(nextNumber).padStart(3, '0')}`,
+      supplier: form.supplier,
+      yarn: form.yarn,
+      qty,
+      rate,
+      total: qty * rate,
+      expected: form.expected,
+      status: 'RAISED',
+      notes: form.notes.trim(),
+    }
+
+    setPurchaseOrders((current) => [newPO, ...current])
+    closeAddModal()
   }
-
-  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
-  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
-
-  const calculatedTotal = Number(formQty) * Number(formRate)
 
   return (
     <div className="page-root">
       <PageHeader
         title="Purchase Orders"
-        subtitle="Yarn and material procurement orders"
+        subtitle="Yarn and material procurement"
         actions={
-          <div className="flex gap-2">
-            <button className="btn-secondary btn-sm gap-1.5" onClick={handleExport}>
-              <Download size={13} />Export CSV
-            </button>
-            <button className="btn-primary btn-sm gap-1.5" onClick={() => setShowAdd(true)}>
-              <Plus size={14} />New PO
-            </button>
-          </div>
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={() => setShowAdd(true)}
+          >
+            <Plus size={14} />
+            New PO
+          </button>
         }
       />
+
       <div className="table-wrap">
-        <table className="table-base">
-          <thead>
-            <tr>
-              <th>PO ID</th>
-              <th>Supplier</th>
-              <th>Yarn</th>
-              <th>Qty</th>
-              <th>Rate</th>
-              <th>Total</th>
-              <th>Expected</th>
-              <th>Status</th>
-              <th>Quick Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pos.length === 0 ? (
+        <div className="table-head">
+          <div className="flex items-center gap-2">
+            <p className="section-title">
+              Active Orders{' '}
+              <span className="text-zinc-600 font-normal text-xs ml-1">
+                {filtered.length} orders
+              </span>
+            </p>
+          </div>
+
+          <div className="relative">
+            <Search
+              size={13}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+            />
+            <input
+              id="search-po-input"
+              className="input-sm pl-8 w-52"
+              placeholder="Search PO, supplier, yarn…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              aria-label="Search purchase orders"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="table-base">
+            <thead>
               <tr>
-                <td colSpan={9} className="text-center py-8 text-zinc-500 text-xs">
-                  No purchase orders found. Click &quot;New PO&quot; to raise a purchase order.
-                </td>
+                <th>PO Number</th>
+                <th>Supplier</th>
+                <th>Yarn / Materials</th>
+                <th>Total Qty</th>
+                <th>Est. Rate</th>
+                <th>Total Value</th>
+                <th>Expected Date</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
-            ) : (
-              pos.map(p => (
-                <tr key={p.id} className="hover:bg-zinc-800/30 transition-colors">
-                  <td className="font-mono text-xs text-primary-400 font-semibold">{p.poId}</td>
-                  <td className="font-semibold text-zinc-200">{p.supplier}</td>
-                  <td>{p.yarn}</td>
-                  <td className="font-mono text-xs text-zinc-300">{p.qty?.toLocaleString()} kg</td>
-                  <td className="text-zinc-400">₹{p.rate}/kg</td>
-                  <td className="font-bold text-emerald-400">{formatCurrencyFull(p.total)}</td>
-                  <td className="text-zinc-400 text-xs">{formatDate(p.expected)}</td>
-                  <td>
-                    <select
-                      className="input !py-1 !px-2 !text-xs !bg-zinc-800/80 !w-auto cursor-pointer"
-                      value={p.status}
-                      disabled={updatePOMutation.isPending}
-                      onChange={(e) => handleStatusChange(p, e.target.value)}
-                    >
-                      {PO_STATUSES.map(st => (
-                        <option key={st} value={st}>{st.replace(/_/g, ' ')}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-1.5">
-                      {p.status !== 'RECEIVED' && (
-                        <button
-                          className="btn-ghost btn-xs text-emerald-400 hover:bg-emerald-500/10 px-2 py-1 gap-1"
-                          title="Mark as Received"
-                          onClick={() => handleStatusChange(p, 'RECEIVED')}
-                        >
-                          <Check size={12} /> Received
-                        </button>
-                      )}
+            </thead>
+            <tbody>
+              {filtered.length > 0 ? (
+                filtered.map((po) => (
+                  <tr key={po.id}>
+                    <td className="font-mono text-xs text-primary-400 font-semibold">
+                      {po.id}
+                    </td>
+                    <td className="font-semibold text-zinc-200">{po.supplier}</td>
+                    <td>{po.yarn}</td>
+                    <td className="font-mono text-xs text-zinc-300">
+                      {po.qty.toLocaleString()} kg
+                    </td>
+                    <td className="text-zinc-400">₹{po.rate.toLocaleString('en-IN')}/kg</td>
+                    <td className="font-bold">{formatCurrencyFull(po.total)}</td>
+                    <td className="text-zinc-400 text-xs">{formatDate(po.expected)}</td>
+                    <td><Badge status={po.status} /></td>
+                    <td>
                       <button
-                        className="btn-ghost btn-xs text-zinc-400 hover:text-zinc-200 px-2 py-1"
-                        onClick={() => setSelectedPO(p)}
+                        type="button"
+                        className="btn-ghost btn-xs text-primary-400"
+                        onClick={() => setSelectedPo(po)}
                       >
-                        Details
+                        View
                       </button>
-                    </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-sm text-zinc-500">
+                    No purchase orders match your search.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* ── Modal: New Purchase Order ── */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="New Purchase Order" size="lg">
-        <form onSubmit={async (e) => {
-          e.preventDefault()
-          const fd = new FormData(e.target)
-          const data = Object.fromEntries(fd.entries())
-          try {
-            await createPOMutation.mutateAsync({
-              poId: `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-              supplier: data.supplier,
-              yarn: data.yarn,
-              qty: Number(data.qty),
-              rate: Number(data.rate),
-              total: Number(data.qty) * Number(data.rate),
-              expected: new Date(data.expected || new Date()).toISOString(),
-              status: 'RAISED'
-            })
-            setShowAdd(false)
-            setFormQty('')
-            setFormRate('')
-          } catch (err) {
-            console.error('Failed to create PO', err)
-            alert('Failed to raise PO: ' + (err?.message || err))
-          }
-        }}>
-          <div className="grid grid-cols-2 gap-4">
+      {/* New Purchase Order Modal */}
+      <Modal
+        open={showAdd}
+        onClose={closeAddModal}
+        title="New Purchase Order"
+        size="lg"
+      >
+        <form onSubmit={handleCreatePO}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="label">Supplier <span className="text-red-400">*</span></label>
-              <select name="supplier" className="input" required defaultValue="">
-                <option value="" disabled>Select Supplier...</option>
-                {suppliers.map(s => <option key={s.id} value={s.name}>{s.name} ({s.city})</option>)}
+              <label className="label" htmlFor="po-supplier">Supplier</label>
+              <select
+                id="po-supplier"
+                className="input"
+                value={form.supplier}
+                onChange={(event) => setField('supplier', event.target.value)}
+              >
+                {SUPPLIERS.map((supplier) => (
+                  <option key={supplier} value={supplier}>{supplier}</option>
+                ))}
               </select>
+              {errors.supplier && <p className="mt-1 text-xs text-red-400">{errors.supplier}</p>}
             </div>
+
             <div>
-              <label className="label">Yarn / Material Type <span className="text-red-400">*</span></label>
-              <input name="yarn" className="input" placeholder="e.g. Cotton 40s Combed" required />
-            </div>
-            <div>
-              <label className="label">Quantity (kg) <span className="text-red-400">*</span></label>
-              <input
-                name="qty"
+              <label className="label" htmlFor="po-yarn">Yarn Type</label>
+              <select
+                id="po-yarn"
                 className="input"
+                value={form.yarn}
+                onChange={(event) => setField('yarn', event.target.value)}
+              >
+                {YARN_TYPES.map((yarn) => (
+                  <option key={yarn} value={yarn}>{yarn}</option>
+                ))}
+              </select>
+              {errors.yarn && <p className="mt-1 text-xs text-red-400">{errors.yarn}</p>}
+            </div>
+
+            <div>
+              <label className="label" htmlFor="po-qty">Quantity (kg)</label>
+              <input
+                id="po-qty"
+                className={`input ${errors.qty ? 'border-red-500' : ''}`}
                 type="number"
+                min="0.01"
                 step="any"
-                required
-                placeholder="e.g. 500"
-                value={formQty}
-                onChange={e => setFormQty(e.target.value)}
+                value={form.qty}
+                onChange={(event) => setField('qty', event.target.value)}
+                placeholder="600"
               />
+              {errors.qty && <p className="mt-1 text-xs text-red-400">{errors.qty}</p>}
             </div>
+
             <div>
-              <label className="label">Rate per kg (₹) <span className="text-red-400">*</span></label>
+              <label className="label" htmlFor="po-rate">Rate per kg (₹)</label>
               <input
-                name="rate"
-                className="input"
+                id="po-rate"
+                className={`input ${errors.rate ? 'border-red-500' : ''}`}
                 type="number"
+                min="0.01"
                 step="any"
-                required
-                placeholder="e.g. 260"
-                value={formRate}
-                onChange={e => setFormRate(e.target.value)}
+                value={form.rate}
+                onChange={(event) => setField('rate', event.target.value)}
+                placeholder="340"
               />
+              {errors.rate && <p className="mt-1 text-xs text-red-400">{errors.rate}</p>}
             </div>
+
             <div>
-              <label className="label">Expected Delivery Date <span className="text-red-400">*</span></label>
+              <label className="label" htmlFor="po-expected">Expected Date</label>
               <input
-                name="expected"
-                className="input"
+                id="po-expected"
+                className={`input ${errors.expected ? 'border-red-500' : ''}`}
                 type="date"
-                required
-                defaultValue={new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]}
+                value={form.expected}
+                onChange={(event) => setField('expected', event.target.value)}
               />
+              {errors.expected && <p className="mt-1 text-xs text-red-400">{errors.expected}</p>}
             </div>
-            <div>
-              <label className="label">Estimated Total Amount</label>
-              <div className="input bg-zinc-800/40 text-emerald-400 font-bold flex items-center">
-                {calculatedTotal > 0 ? formatCurrencyFull(calculatedTotal) : '₹0'}
-              </div>
+
+            <div className="sm:col-span-2">
+              <label className="label" htmlFor="po-notes">Notes (optional)</label>
+              <textarea
+                id="po-notes"
+                className="input min-h-20"
+                rows={3}
+                value={form.notes}
+                onChange={(event) => setField('notes', event.target.value)}
+                placeholder="Add delivery instructions or other notes"
+              />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800/60 mt-4">
-            <button type="button" className="btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={createPOMutation.isPending}>
-              {createPOMutation.isPending ? 'Raising PO...' : 'Raise Purchase Order'}
+
+          {Number(form.qty) > 0 && Number(form.rate) > 0 && (
+            <p className="text-sm text-zinc-300 mt-4">
+              Estimated total:{' '}
+              <span className="font-bold text-emerald-400">
+                {formatCurrencyFull(Number(form.qty) * Number(form.rate))}
+              </span>
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-4">
+            <button type="button" className="btn-secondary" onClick={closeAddModal}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary">
+              Raise PO
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* ── Modal: PO Details & Status Edit ── */}
-      <Modal open={!!selectedPO} onClose={() => setSelectedPO(null)} title={`Purchase Order: ${selectedPO?.poId}`} size="md">
-        {selectedPO && (
+      {/* Purchase Order Details Modal */}
+      {selectedPo && (
+        <Modal
+          open={Boolean(selectedPo)}
+          onClose={() => setSelectedPo(null)}
+          title={`Purchase Order: ${selectedPo.id}`}
+          size="md"
+        >
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-zinc-800/50 p-3 rounded-xl">
-                <span className="text-zinc-500">Supplier</span>
-                <p className="font-semibold text-zinc-200 mt-0.5">{selectedPO.supplier}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-zinc-900/60 p-3 rounded-xl border border-zinc-800">
+              <div>
+                <span className="text-zinc-500 block">Supplier</span>
+                <span className="text-zinc-200 font-semibold">{selectedPo.supplier}</span>
               </div>
-              <div className="bg-zinc-800/50 p-3 rounded-xl">
-                <span className="text-zinc-500">Material</span>
-                <p className="font-semibold text-zinc-200 mt-0.5">{selectedPO.yarn}</p>
+              <div>
+                <span className="text-zinc-500 block">Yarn / Material</span>
+                <span className="text-zinc-200 font-semibold">{selectedPo.yarn}</span>
               </div>
-              <div className="bg-zinc-800/50 p-3 rounded-xl">
-                <span className="text-zinc-500">Order Quantity</span>
-                <p className="font-semibold text-zinc-200 mt-0.5">{selectedPO.qty?.toLocaleString()} kg</p>
+              <div>
+                <span className="text-zinc-500 block">Quantity</span>
+                <span className="text-zinc-200">{selectedPo.qty.toLocaleString()} kg</span>
               </div>
-              <div className="bg-zinc-800/50 p-3 rounded-xl">
-                <span className="text-zinc-500">Total Value</span>
-                <p className="font-bold text-emerald-400 mt-0.5">{formatCurrencyFull(selectedPO.total)}</p>
+              <div>
+                <span className="text-zinc-500 block">Rate</span>
+                <span className="text-zinc-200">{formatCurrencyFull(selectedPo.rate)} / kg</span>
               </div>
-            </div>
-
-            <div>
-              <label className="label">Change Status</label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {PO_STATUSES.map(st => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => handleStatusChange(selectedPO, st)}
-                    className={`btn-sm text-xs rounded-xl border ${
-                      selectedPO.status === st
-                        ? 'bg-primary-500/20 border-primary-500 text-primary-300 font-bold'
-                        : 'bg-zinc-800/40 border-zinc-700/60 text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    {st.replace(/_/g, ' ')}
-                  </button>
-                ))}
+              <div>
+                <span className="text-zinc-500 block">Status</span>
+                <span className="mt-0.5 inline-block"><Badge status={selectedPo.status} /></span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block">Expected Date</span>
+                <span className="text-zinc-200">{formatDate(selectedPo.expected)}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block">Total Value</span>
+                <span className="text-emerald-400 font-bold">{formatCurrencyFull(selectedPo.total)}</span>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-zinc-800/60">
-              <button className="btn-secondary" onClick={() => setSelectedPO(null)}>Close</button>
+            {selectedPo.notes && (
+              <div className="text-xs text-zinc-400 bg-zinc-800/30 p-2.5 rounded-lg border border-zinc-800">
+                <span className="font-semibold text-zinc-300">Notes:</span>{' '}
+                {selectedPo.notes}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => setSelectedPo(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
-        )}
-      </Modal>
+        </Modal>
+      )}
     </div>
   )
 }

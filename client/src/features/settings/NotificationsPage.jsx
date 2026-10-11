@@ -29,7 +29,7 @@ export default function NotificationsPage() {
   const { data: alertsData, isLoading, error } = useAlerts()
   const createMutation = useCreateNotification()
   const deleteMutation = useDeleteNotification()
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({
     type: 'announcement',
@@ -42,7 +42,7 @@ export default function NotificationsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     try {
       await createMutation.mutateAsync(formData)
       setIsModalOpen(false)
@@ -59,7 +59,7 @@ export default function NotificationsPage() {
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this notification?')) return
-    
+
     try {
       await deleteMutation.mutateAsync(id)
     } catch (error) {
@@ -97,7 +97,7 @@ export default function NotificationsPage() {
           {alerts.map((alert) => {
             const severityConfig = getSeverityConfig(alert.severity)
             const Icon = severityConfig.icon
-            
+
             return (
               <div
                 key={alert.id}
@@ -110,7 +110,7 @@ export default function NotificationsPage() {
                   )}>
                     <Icon size={18} />
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn(
@@ -123,11 +123,11 @@ export default function NotificationsPage() {
                         {severityConfig.label}
                       </span>
                     </div>
-                    
+
                     <p className="text-sm text-zinc-200 leading-relaxed mb-2">
                       {alert.message}
                     </p>
-                    
+
                     <div className="flex items-center gap-4 text-xs text-zinc-500">
                       <span>By {alert.author}</span>
                       <span>•</span>
@@ -184,7 +184,7 @@ export default function NotificationsPage() {
               {SEVERITY_OPTIONS.map(option => {
                 const Icon = option.icon
                 const isSelected = formData.severity === option.value
-                
+
                 return (
                   <button
                     key={option.value}

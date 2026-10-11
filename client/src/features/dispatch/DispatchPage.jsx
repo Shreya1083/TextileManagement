@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
-import { Plus, Truck, Search, Eye, Edit2, Trash2, FileText, CheckCircle2, Clock, MapPin, Printer, ArrowRight, Download } from 'lucide-react'
+import { Plus, Truck, Search, Eye, Edit2, Trash2, FileText, CheckCircle2, MapPin, Printer, Download } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Badge } from '../../components/ui/Badge'
 import { Modal } from '../../components/ui/Modal'
-import { formatDate, formatCurrencyFull } from '../../lib/utils'
+import { formatDate } from '../../lib/utils'
 import { exportCSV } from '../../lib/exportUtils'
 import {
   useDispatches,
@@ -733,4 +733,3 @@ function DispatchForm({ initialData, buyers, orders, onSubmit, isSubmitting, onC
     </form>
   )
 }
-

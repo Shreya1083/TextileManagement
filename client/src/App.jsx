@@ -1,11 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth }      from './context/AuthContext'
 import { ROLE_HOME }    from './context/AuthContext'
 import { ProtectedRoute } from './app/ProtectedRoute'
 import { AppLayout }      from './components/layout/AppLayout'
+import { ToastProvider }  from './components/ui/Toast'
 
 // Public
 import LoginPage          from './features/auth/LoginPage'
@@ -71,76 +70,76 @@ function RootRedirect() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Routes>
-          {/* Public */}
-          <Route path="/login"  element={<LoginPage />} />
-          <Route path="/signin" element={<SignInPage />} />
-          <Route path="/track"  element={<TrackingPage />} />
-          <Route path="/403"    element={<Forbidden />} />
-          <Route path="/"       element={<RootRedirect />} />
+    <AuthProvider>
+      <ToastProvider>
+      <Routes>
+        {/* Public */}
+        <Route path="/login"  element={<LoginPage />} />
+        <Route path="/signin" element={<SignInPage />} />
+        <Route path="/track"  element={<TrackingPage />} />
+        <Route path="/403"    element={<Forbidden />} />
+        <Route path="/"       element={<RootRedirect />} />
 
-          {/* Protected — inside AppLayout (any authenticated user) */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              {/* Dashboards */}
-              <Route path="/dashboard" element={<OwnerDashboard />} />
-              <Route path="/floor"     element={<FloorDashboard />} />
-              <Route path="/eod"       element={<EODDashboard />} />
+        {/* Protected — inside AppLayout (any authenticated user) */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            {/* Dashboards */}
+            <Route path="/dashboard" element={<OwnerDashboard />} />
+            <Route path="/floor"     element={<FloorDashboard />} />
+            <Route path="/eod"       element={<EODDashboard />} />
 
-              {/* Inventory */}
-              <Route path="/inventory/stock"           element={<StockPage />} />
-              <Route path="/inventory/suppliers"       element={<SuppliersPage />} />
-              <Route path="/inventory/gate-entries"    element={<GateEntryPage />} />
-              <Route path="/inventory/purchase-orders" element={<PurchaseOrdersPage />} />
+            {/* Inventory */}
+            <Route path="/inventory/stock"           element={<StockPage />} />
+            <Route path="/inventory/suppliers"       element={<SuppliersPage />} />
+            <Route path="/inventory/gate-entries"    element={<GateEntryPage />} />
+            <Route path="/inventory/purchase-orders" element={<PurchaseOrdersPage />} />
 
-              {/* Orders — accessible to all authenticated roles including Buyer */}
-              <Route path="/buyers" element={<BuyersPage />} />
-              <Route path="/orders" element={<OrdersPage />} />
+            {/* Orders — accessible to all authenticated roles including Buyer */}
+            <Route path="/buyers" element={<BuyersPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
 
-              {/* Production */}
-              <Route path="/production/machines"    element={<MachineBoard />} />
-              <Route path="/production/assignments" element={<MachineBoard />} />
-              <Route path="/production/entry"       element={<ProductionEntry />} />
-              <Route path="/production/downtime"    element={<DowntimePage />} />
+            {/* Production */}
+            <Route path="/production/machines"    element={<MachineBoard />} />
+            <Route path="/production/assignments" element={<MachineBoard />} />
+            <Route path="/production/entry"       element={<ProductionEntry />} />
+            <Route path="/production/downtime"    element={<DowntimePage />} />
 
-              {/* Quality */}
-              <Route path="/quality/queue"   element={<InspectionQueue />} />
-              <Route path="/quality/defects" element={<DefectReport />} />
+            {/* Quality */}
+            <Route path="/quality/queue"   element={<InspectionQueue />} />
+            <Route path="/quality/defects" element={<DefectReport />} />
 
-              {/* Dispatch */}
-              <Route path="/dispatch/stock" element={<FinishedStockPage />} />
-              <Route path="/dispatch"       element={<DispatchPage />} />
-              <Route path="/invoices"       element={<InvoicesPage />} />
+            {/* Dispatch */}
+            <Route path="/dispatch/stock" element={<FinishedStockPage />} />
+            <Route path="/dispatch"       element={<DispatchPage />} />
+            <Route path="/invoices"       element={<InvoicesPage />} />
 
-              {/* HR — attendance and workers open to all authenticated roles; wages/dashboard restricted */}
-              <Route path="/hr/workers"          element={<WorkersPage />} />
-              <Route path="/hr/dashboard"        element={<WorkerDashboard />} />
-              <Route path="/hr/attendance"       element={<AttendancePage />} />
-              <Route path="/worker/my-dashboard" element={<MyDashboard />} />
+            {/* HR — attendance and workers open to all authenticated roles; wages/dashboard restricted */}
+            <Route path="/hr/workers"          element={<WorkersPage />} />
+            <Route path="/hr/dashboard"        element={<WorkerDashboard />} />
+            <Route path="/hr/attendance"       element={<AttendancePage />} />
+            <Route path="/worker/my-dashboard" element={<MyDashboard />} />
 
-              {/* Internal-only routes: Buyer is blocked, redirected to /403 */}
-              <Route element={<ProtectedRoute roles={INTERNAL_ROLES} />}>
-                {/* HR — wages contains payroll data */}
-                <Route path="/hr/wages" element={<WagesPage />} />
+            {/* Internal-only routes: Buyer is blocked, redirected to /403 */}
+            <Route element={<ProtectedRoute roles={INTERNAL_ROLES} />}>
+              {/* HR — wages contains payroll data */}
+              <Route path="/hr/wages" element={<WagesPage />} />
 
-                {/* Finance — P&L and costing are owner/internal only */}
-                <Route path="/finance/costing" element={<CostingPage />} />
-                <Route path="/finance/pnl"     element={<PnLPage />} />
+              {/* Finance — P&L and costing are owner/internal only */}
+              <Route path="/finance/costing" element={<CostingPage />} />
+              <Route path="/finance/pnl"     element={<PnLPage />} />
 
-                {/* Settings — admin/internal only */}
-                <Route path="/settings/mill"        element={<MillSettings />} />
-                <Route path="/settings/master-data" element={<MasterData />} />
-                <Route path="/users"                element={<UsersPage />} />
-              </Route>
+              {/* Settings — admin/internal only */}
+              <Route path="/settings/mill"        element={<MillSettings />} />
+              <Route path="/settings/master-data" element={<MasterData />} />
+              <Route path="/users"                element={<UsersPage />} />
             </Route>
           </Route>
+        </Route>
 
-          {/* Catch-all */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AuthProvider>
-    </QueryClientProvider>
+        {/* Catch-all */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      </ToastProvider>
+    </AuthProvider>
   )
 }

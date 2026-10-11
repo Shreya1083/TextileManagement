@@ -37,7 +37,7 @@ export function Modal({ open, onClose, title, children, size = 'md', description
       />
       {/* Panel */}
       <div className={cn(
-        'relative w-full bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-modal animate-scale-in',
+        'relative flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-modal animate-scale-in',
         sizeClass,
       )}>
         {/* Header */}
@@ -56,7 +56,9 @@ export function Modal({ open, onClose, title, children, size = 'md', description
             </button>
           </div>
         )}
-        <div className="px-6 py-5">{children}</div>
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-6 py-5">
+          {children}
+        </div>
       </div>
     </div>
   )

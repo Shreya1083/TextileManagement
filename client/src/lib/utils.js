@@ -5,6 +5,15 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Convert integer paise to rupees and format with Indian number system.
+ * Server always stores money as integer paise (100 paise = ₹1).
+ */
+export function paiseToCurrency(paise) {
+  if (paise == null) return '—'
+  return formatCurrency(Math.round(paise) / 100)
+}
+
 export function formatCurrency(amount) {
   if (amount >= 1_00_00_000) return `₹${(amount / 1_00_00_000).toFixed(2)}Cr`
   if (amount >= 1_00_000)    return `₹${(amount / 1_00_000).toFixed(2)}L`
@@ -14,6 +23,12 @@ export function formatCurrency(amount) {
 
 export function formatCurrencyFull(amount) {
   return `₹${amount.toLocaleString('en-IN')}`
+}
+
+/** Format integer paise to full rupee string (₹X,XX,XXX). */
+export function paiseFull(paise) {
+  if (paise == null) return '—'
+  return formatCurrencyFull(Math.round(paise) / 100)
 }
 
 export function formatDate(dateStr) {

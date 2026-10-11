@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { CheckCircle2, XCircle, Clock, Save, Calendar, ChevronLeft, ChevronRight, User } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
-import { ErrorMessage } from '../../components/ui/ErrorMessage'
 import { cn } from '../../lib/utils'
 import { useWorkers, useMarkAttendance, useAttendance } from '../../hooks/useAPI'
 
@@ -16,13 +15,13 @@ export default function AttendancePage() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [attendance, setAttendance] = useState({})
   const [shift, setShift] = useState('Morning')
-  
+
   const dateStr = selectedDate.toISOString().split('T')[0]
-  
+
   const { data: workersData, isLoading: loadingWorkers } = useWorkers()
   const { data: attendanceData, isLoading: loadingAttendance } = useAttendance(dateStr)
   const markMutation = useMarkAttendance()
-  
+
   const workers = workersData?.data || []
 
   // Initialize attendance from backend
@@ -50,12 +49,12 @@ export default function AttendancePage() {
         status,
         shift
       }))
-      
+
       await markMutation.mutateAsync({
         date: dateStr,
         records
       })
-      
+
       alert(`✅ Attendance saved for ${dateStr}`)
     } catch (error) {
       console.error('Failed to save attendance:', error)
@@ -79,10 +78,6 @@ export default function AttendancePage() {
     setSelectedDate(new Date())
   }
 
-  const getStatusConfig = (status) => {
-    return STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0]
-  }
-
   const summary = {
     present: Object.values(attendance).filter(s => s === 'PRESENT').length,
     absent: Object.values(attendance).filter(s => s === 'ABSENT').length,
@@ -96,11 +91,11 @@ export default function AttendancePage() {
     <div className="p-6 space-y-6">
       <PageHeader
         title="Attendance Management"
-        subtitle={`Mark attendance for ${selectedDate.toLocaleDateString('en-IN', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+        subtitle={`Mark attendance for ${selectedDate.toLocaleDateString('en-IN', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
         })}`}
       />
 
@@ -215,8 +210,6 @@ export default function AttendancePage() {
         <div className="divide-y divide-zinc-800">
           {workers.map((worker) => {
             const currentStatus = attendance[worker.workerId] || 'PRESENT'
-            const statusConfig = getStatusConfig(currentStatus)
-            const StatusIcon = statusConfig.icon
 
             return (
               <div

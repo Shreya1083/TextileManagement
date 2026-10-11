@@ -2,15 +2,33 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth }  from '../../context/AuthContext'
 import { ROLE_OPTIONS, WORKER_LIST, ROLE_HOME } from '../../context/AuthContext'
-import { Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown, ChevronRight } from 'lucide-react'
+import {
+  Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown,
+  Boxes, Factory, Search, BarChart3, Shield, Package, Briefcase, User, ShoppingCart,
+} from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const FEATURES = [
-  { icon: '🧵', title: 'Complete Traceability',  desc: 'Track materials from entry to dispatch' },
-  { icon: '⚙️', title: 'Production Monitoring',  desc: 'Real-time machine status tracking'   },
-  { icon: '🔍', title: 'Quality Control',    desc: 'Systematic inspection workflow'     },
-  { icon: '📊', title: 'Business Analytics',          desc: 'Comprehensive reporting dashboard'  },
+  { icon: Boxes, title: 'End-to-End Traceability',  desc: 'Track every yarn lot to finished roll and dispatch' },
+  { icon: Factory, title: 'Live Machine Monitoring',  desc: 'Real-time status for every machine on the floor'   },
+  { icon: Search, title: 'Smart Quality Control',    desc: 'QR-based roll inspection with defect analytics'     },
+  { icon: BarChart3, title: 'Admin Analytics',          desc: 'Revenue, P&L and order profitability at a glance'  },
 ]
+
+const ROLE_ICONS = {
+  shield: Shield,
+  factory: Factory,
+  search: Search,
+  package: Package,
+  briefcase: Briefcase,
+  user: User,
+  'shopping-cart': ShoppingCart,
+}
+
+function RoleIcon({ name }) {
+  const Icon = ROLE_ICONS[name] || User
+  return <Icon size={17} />
+}
 
 export default function LoginPage() {
   const { login }    = useAuth()
@@ -115,11 +133,13 @@ export default function LoginPage() {
             quality control to dispatch.
           </p>
           <div className="grid grid-cols-2 gap-3 mt-8">
-            {FEATURES.map(f => (
-              <div key={f.title} className="card-glass p-4 rounded-2xl">
-                <span className="text-xl mb-2 block">{f.icon}</span>
-                <p className="text-xs font-semibold text-zinc-200">{f.title}</p>
-                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{f.desc}</p>
+            {FEATURES.map(({ icon: Icon, ...feature }) => (
+              <div key={feature.title} className="card-glass p-4 rounded-2xl">
+                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/15 text-primary-300">
+                  <Icon size={17} />
+                </span>
+                <p className="text-xs font-semibold text-zinc-200">{feature.title}</p>
+                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -174,10 +194,10 @@ export default function LoginPage() {
                 )}
               >
                 <div className={cn(
-                  'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-lg',
+                  'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white',
                   selectedRole.color,
                 )}>
-                  {selectedRole.icon}
+                  <RoleIcon name={selectedRole.icon} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-zinc-100 leading-tight">{selectedRole.label}</p>
@@ -200,10 +220,10 @@ export default function LoginPage() {
                       )}
                     >
                       <div className={cn(
-                        'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-lg',
+                        'w-9 h-9 rounded-xl bg-gradient-to-br shrink-0 flex items-center justify-center text-white',
                         opt.color,
                       )}>
-                        {opt.icon}
+                        <RoleIcon name={opt.icon} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-zinc-200 leading-tight">{opt.label}</p>

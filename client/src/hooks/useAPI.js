@@ -333,7 +333,7 @@ export const useCreateSupplier = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data) => API.inventory.createSupplier(data),
-    onSuccess: (newSupplier) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers })
       queryClient.invalidateQueries({ queryKey: ['inventory', 'suppliers'] })
       queryClient.invalidateQueries({ queryKey: ['suppliers'] })

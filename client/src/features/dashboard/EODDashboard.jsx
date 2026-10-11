@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -6,21 +6,22 @@ import {
 import {
   Factory, CheckCircle, AlertTriangle, Clock, Users,
   DollarSign, Package, Truck, FileText, Zap,
-  ArrowRight, BarChart3, Activity, Star, RefreshCw, Download,
+  BarChart3, Activity, Star, RefreshCw, Download,
   CalendarDays, Moon, Sun, Sunset,
 } from 'lucide-react'
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { Badge }       from '../../components/ui/Badge'
+import { Modal }       from '../../components/ui/Modal'
+import { useToast }    from '../../components/ui/Toast'
 import { useAuth }     from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
 import { formatCurrency, formatCurrencyFull, cn } from '../../lib/utils'
-import { exportPDF } from '../../lib/exportUtils'
+import { exportPDF }   from '../../lib/exportUtils'
+import { DashboardSubheader } from './DashboardSubheader'
 import {
-  useEODSummary, useEODShifts, useEODHourlyOutput,
-  useEODMachineOutput, useEODTopPerformers, useEODTimeline
-} from '../../hooks/useAPI'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
-import { ErrorMessage } from '../../components/ui/ErrorMessage'
+  mockDailySummary, mockDailyShifts, mockHourlyOutput,
+  mockMachineOutput, mockTopPerformers, mockEODTimeline,
+} from '../../mocks/data'
 
 /* ─── helpers ─────────────────────────────────────────────────────────── */
 const ChartTip = ({ active, payload, label }) => {
@@ -50,7 +51,7 @@ const TIMELINE_CFG = {
 
 const SEVERITY_BAR = { info: 'bg-primary-500', success: 'bg-emerald-500', warning: 'bg-amber-500', danger: 'bg-red-500' }
 
-const SHIFT_ICONS = { Morning: Sun, Afternoon: Sunset, Evening: Sunset, Night: Moon }
+const SHIFT_ICONS = { Morning: Sun, Afternoon: Sunset, Night: Moon }
 
 function KpiMini({ label, value, sub, color = 'text-zinc-50' }) {
   return (
@@ -83,83 +84,63 @@ function ProgressRing({ pct, size = 64, stroke = 6, color = '#6366f1' }) {
 /* ─── main component ──────────────────────────────────────────────────── */
 export default function EODDashboard() {
   const { user }    = useAuth()
-  
-  const { data: summaryData, isLoading, error } = useEODSummary()
-  const s = summaryData?.data || { totalOutput: 0, totalTarget: 0, rollsPassed: 0, rollsProduced: 0, totalPresent: 0, totalWorkers: 0, machineUptime: 0, downtimeEvents: 0, estimatedRevenue: 0, estimatedCost: 0, estimatedProfit: 0, dispatchesToday: 0, metresDispatched: 0, invoiceValue: 0 }
+  const toast       = useToast()
+  const s           = mockDailySummary
+  const [activeShift, setActiveShift]   = useState('Morning')
+  const [refreshing, setRefreshing]     = useState(false)
+  const [exporting, setExporting]       = useState(false)
+  const [reportOpen, setReportOpen]     = useState(false)
+  const shift       = mockDailyShifts.find(sh => sh.shift === activeShift)
 
-  const { data: shiftsData } = useEODShifts()
-  const dailyShifts = shiftsData?.data || []
-
-  const { data: hourlyData } = useEODHourlyOutput()
-  const hourlyOutput = hourlyData?.data || []
-
-  const { data: machineOutData } = useEODMachineOutput()
-  const machineOutput = machineOutData?.data || []
-
-  const { data: topPerfData } = useEODTopPerformers()
-  const topPerformers = topPerfData?.data || []
-
-  const { data: timelineData } = useEODTimeline()
-  const timeline = timelineData?.data || []
-
-  const [activeShift, setActiveShift] = useState('Morning')
-  const shift       = dailyShifts.find(sh => sh.shift === activeShift) || dailyShifts[0]
-
-  const achievePct  = s.totalTarget ? Math.round((s.totalOutput / s.totalTarget) * 100) : 0
-  const passRate    = s.rollsProduced ? Math.round((s.rollsPassed / s.rollsProduced) * 100) : 0
-  const attendPct   = s.totalWorkers ? Math.round((s.totalPresent / s.totalWorkers) * 100) : 0
+  const achievePct  = Math.round((s.totalOutput / s.totalTarget) * 100)
+  const passRate    = Math.round((s.rollsPassed / s.rollsProduced) * 100)
+  const attendPct   = Math.round((s.totalPresent / s.totalWorkers) * 100)
 
   const today = new Date().toLocaleDateString('en-IN', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
 
-  const handleExportPDF = async () => {
+  // ── Refresh ──────────────────────────────────────────────────────────────
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true)
+    setTimeout(() => {
+      setRefreshing(false)
+      toast('EOD data refreshed', 'success')
+    }, 1200)
+  }, [toast])
+
+  // ── Export PDF ───────────────────────────────────────────────────────────
+  const handleExportPDF = useCallback(async () => {
+    setExporting(true)
+    toast('Generating PDF…', 'info', 2500)
     try {
       await exportPDF({
-        title: 'EOD Production Report',
+        title: 'End-of-Day Report',
         subtitle: today,
-        columns: ['Metric', 'Value'],
+        filename: `EOD_Report_${s.date}`,
+        columns: ['Metric', 'Value', 'Target / Note'],
         rows: [
-          ['Total Output', `${s.totalOutput} m`],
-          ['Total Target', `${s.totalTarget} m`],
-          ['Rolls Produced', s.rollsProduced],
-          ['Rolls Passed', s.rollsPassed],
-          ['Rolls Rejected', s.rollsRejected],
-          ['Attendance', `${s.totalPresent}/${s.totalWorkers}`],
-          ['Machine Uptime', `${s.machineUptime}%`],
-          ['Downtime Events', s.downtimeEvents],
-          ['Estimated Revenue', formatCurrencyFull(s.estimatedRevenue)],
-          ['Estimated Cost', formatCurrencyFull(s.estimatedCost)],
-          ['Estimated Profit', formatCurrencyFull(s.estimatedProfit)]
+          ['Total Output',    `${s.totalOutput.toLocaleString()} m`,  `Target: ${s.totalTarget.toLocaleString()} m (${achievePct}%)`],
+          ['Rolls Produced',  String(s.rollsProduced),                `Passed: ${s.rollsPassed} · Rework: ${s.rollsRework} · Rejected: ${s.rollsRejected}`],
+          ['Quality Pass Rate', `${passRate}%`,                       `Defects found: ${s.defectsFound}`],
+          ['Attendance',      `${s.totalPresent} / ${s.totalWorkers}`,`Absent: ${s.totalAbsent} · OT: ${s.overtimeHrs} hrs`],
+          ['Machine Uptime',  `${s.machineUptime}%`,                  `Downtime: ${s.downtimeMins} min (${s.downtimeMachine})`],
+          ['Est. Revenue',    formatCurrencyFull(s.estimatedRevenue), `Cost: ${formatCurrencyFull(s.estimatedCost)}`],
+          ['Est. Profit',     formatCurrencyFull(s.estimatedProfit),  ''],
+          ['Dispatches',      String(s.dispatchesToday),              `${s.metresDispatched.toLocaleString()} m · Invoice: ${formatCurrencyFull(s.invoiceValue)}`],
+          ['Stock Warnings',  String(s.stockWarnings),                'Items below reorder level'],
+          ['Top Defect',      s.topDefect,                            ''],
         ],
-        filename: `EOD_Report_${new Date().toISOString().split('T')[0]}`
-      });
-    } catch (err) {
-      console.error('Failed to export PDF:', err);
-      alert('Failed to export PDF. Please try again.');
+      })
+      toast('PDF downloaded successfully', 'success')
+    } catch {
+      toast('PDF export failed', 'error')
+    } finally {
+      setExporting(false)
     }
-  }
+  }, [s, today, achievePct, passRate, toast])
 
-  const handleShare = async () => {
-    const shareData = {
-      title: 'EOD Production Report',
-      text: `EOD Report for ${today}\nTotal Production: ${s.totalOutput} m\nPass Rate: ${passRate}%\nAttendance: ${attendPct}%\nEst Profit: ${formatCurrencyFull(s.estimatedProfit)}`,
-      url: window.location.href,
-    };
-    try {
-      if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(shareData.title + '\\n' + shareData.text + '\\n' + shareData.url);
-        alert('Report details copied to clipboard!');
-      }
-    } catch (err) {
-      console.error('Error sharing:', err);
-    }
-  }
 
-  if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
-  if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">
@@ -176,15 +157,27 @@ export default function EODDashboard() {
         }
         actions={
           <div className="flex items-center gap-2">
-            <button className="btn-secondary btn-sm gap-1.5" onClick={handleExportPDF}>
-              <Download size={13} />Export PDF
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="btn-secondary btn-sm gap-1.5"
+            >
+              <Download size={13} className={exporting ? 'animate-bounce' : ''} />
+              {exporting ? 'Generating…' : 'Export PDF'}
             </button>
-            <button className="btn-ghost btn-sm gap-1.5" onClick={() => window.location.reload()}>
-              <RefreshCw size={13} />Refresh
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="btn-ghost btn-sm gap-1.5"
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
         }
       />
+
+      <DashboardSubheader />
 
       {/* ── Day hero strip ── */}
       <div className="card overflow-hidden">
@@ -213,9 +206,9 @@ export default function EODDashboard() {
 
             {/* Rolls */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Rolls Today</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Rolls Today</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xl font-bold text-zinc-50">{s.rollsProduced}</span>
+                <span className="text-base font-semibold text-zinc-50">{s.rollsProduced}</span>
                 <span className="text-xs text-zinc-600">produced</span>
               </div>
               <div className="flex items-center gap-3 text-xs">
@@ -227,9 +220,9 @@ export default function EODDashboard() {
 
             {/* Workforce */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Workforce</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Workforce</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xl font-bold text-zinc-50">{s.totalPresent}</span>
+                <span className="text-base font-semibold text-zinc-50">{s.totalPresent}</span>
                 <span className="text-xs text-zinc-600">/ {s.totalWorkers}</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400">
@@ -242,9 +235,9 @@ export default function EODDashboard() {
 
             {/* Machine uptime */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Machine Uptime</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Machine Uptime</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xl font-bold text-zinc-50">{s.machineUptime}%</span>
+                <span className="text-base font-semibold text-zinc-50">{s.machineUptime}%</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-red-400">
                 <AlertTriangle size={11} />{s.downtimeEvents} breakdown
@@ -254,9 +247,9 @@ export default function EODDashboard() {
 
             {/* Revenue */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Est. Revenue</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Est. Revenue</p>
               <div className="mt-1">
-                <span className="text-xl font-bold text-emerald-400">{formatCurrency(s.estimatedRevenue)}</span>
+                <span className="text-base font-semibold text-emerald-400">{formatCurrency(s.estimatedRevenue)}</span>
               </div>
               <p className="text-2xs text-zinc-600">Cost: {formatCurrency(s.estimatedCost)}</p>
               <p className={`text-xs font-semibold ${s.estimatedProfit < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -266,9 +259,9 @@ export default function EODDashboard() {
 
             {/* Dispatch */}
             <div className="flex flex-col gap-1">
-              <p className="text-2xs text-zinc-500 font-semibold uppercase tracking-wide">Dispatches</p>
+              <p className="text-xs text-zinc-200 font-bold tracking-wide">Dispatches</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xl font-bold text-zinc-50">{s.dispatchesToday}</span>
+                <span className="text-base font-semibold text-zinc-50">{s.dispatchesToday}</span>
                 <span className="text-xs text-zinc-600">today</span>
               </div>
               <p className="text-xs text-zinc-300">{s.metresDispatched.toLocaleString()} m shipped</p>
@@ -292,7 +285,7 @@ export default function EODDashboard() {
         </div>
         <div className="p-5">
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={hourlyOutput} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+            <AreaChart data={mockHourlyOutput} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
               <defs>
                 <linearGradient id="gHourly" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%"   stopColor="#6366f1" stopOpacity={0.3} />
@@ -326,8 +319,8 @@ export default function EODDashboard() {
         </h2>
         {/* Shift selector tabs */}
         <div className="flex gap-2">
-          {dailyShifts.map(sh => {
-            const Icon = SHIFT_ICONS[sh.shift] || Clock
+          {mockDailyShifts.map(sh => {
+            const Icon = SHIFT_ICONS[sh.shift]
             return (
               <button key={sh.shift} onClick={() => setActiveShift(sh.shift)}
                 className={cn('btn-secondary btn-sm gap-2',
@@ -354,12 +347,12 @@ export default function EODDashboard() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3">
-              <KpiMini label="Output"         value={`${(shift.output || 0).toLocaleString()} m`} sub={`Target ${(shift.target || 5000).toLocaleString()} m`} color="text-primary-300" />
-              <KpiMini label="Waste"          value={`${shift.waste ?? 0} m`}  sub={`${shift.output ? (((shift.waste ?? 0) / shift.output) * 100).toFixed(1) : '0.0'}% waste rate`} color="text-amber-400" />
-              <KpiMini label="Rolls Produced" value={shift.rollsProduced ?? 0} sub={`${shift.rollsPassed ?? 0} passed · ${shift.rollsRework ?? 0} rework`} />
-              <KpiMini label="Workers Present" value={`${shift.present ?? 0}/${shift.workers ?? 20}`} sub={(shift.absent || 0) > 0 ? `${shift.absent} absent` : 'Full attendance'} color={shift.absent ? 'text-amber-400' : 'text-emerald-400'} />
-              <KpiMini label="Machines"        value={`${shift.machinesRunning ?? 8} running`} sub={`${shift.machinesIdle ?? 2} idle · ${shift.machinesBreakdown ?? 0} down`} color="text-emerald-400" />
-              <KpiMini label="Quality Pass"   value={`${shift.rollsProduced ? Math.round(((shift.rollsPassed ?? 0) / shift.rollsProduced) * 100) : 100}%`} sub={`${shift.rollsRejected ?? 0} rejected`} color="text-teal-400" />
+              <KpiMini label="Output"         value={`${shift.output.toLocaleString()} m`} sub={`Target ${shift.target.toLocaleString()} m`} color="text-primary-300" />
+              <KpiMini label="Waste"          value={`${shift.waste} m`}  sub={`${((shift.waste/shift.output)*100).toFixed(1)}% waste rate`} color="text-amber-400" />
+              <KpiMini label="Rolls Produced" value={shift.rollsProduced} sub={`${shift.rollsPassed} passed · ${shift.rollsRework} rework`} />
+              <KpiMini label="Workers Present" value={`${shift.present}/${shift.workers}`} sub={shift.absent > 0 ? `${shift.absent} absent` : 'Full attendance'} color={shift.absent ? 'text-amber-400' : 'text-emerald-400'} />
+              <KpiMini label="Machines"        value={`${shift.machinesRunning} running`} sub={`${shift.machinesIdle} idle · ${shift.machinesBreakdown} down`} color="text-emerald-400" />
+              <KpiMini label="Quality Pass"   value={`${Math.round((shift.rollsPassed/shift.rollsProduced)*100)}%`} sub={`${shift.rollsRejected} rejected`} color="text-teal-400" />
             </div>
 
             {/* Output progress bar */}
@@ -389,14 +382,14 @@ export default function EODDashboard() {
         <div className="table-wrap xl:col-span-2">
           <div className="table-head">
             <p className="section-title">Machine Output Today</p>
-            <span className="badge badge-gray">{machineOutput.length} machines</span>
+            <span className="badge badge-gray">{mockMachineOutput.length} machines</span>
           </div>
           <table className="table-base">
             <thead>
               <tr><th>Machine</th><th>Output (m)</th><th>Target</th><th>Efficiency</th><th>Status</th></tr>
             </thead>
             <tbody>
-              {machineOutput.map(m => {
+              {mockMachineOutput.map(m => {
                 const eff = m.eff
                 return (
                   <tr key={m.machine}>
@@ -440,10 +433,10 @@ export default function EODDashboard() {
             <span className="text-2xs text-zinc-600">By output</span>
           </div>
           <ul className="flex-1 divide-y divide-zinc-800/40 overflow-y-auto scrollbar-thin">
-            {topPerformers.map(p => (
+            {mockTopPerformers.map(p => (
               <li key={p.rank} className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-800/30 transition-colors">
                 <div className="w-7 h-7 rounded-xl bg-zinc-800 flex items-center justify-center text-sm shrink-0">
-                  {p.badge || <span className="text-zinc-600 font-bold text-xs">#{p.rank}</span>}
+                  <span className="text-zinc-300 font-bold text-xs">#{p.rank}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-zinc-200 truncate">{p.name}</p>
@@ -515,7 +508,7 @@ export default function EODDashboard() {
             <CalendarDays size={14} className="text-zinc-500" />
             <p className="section-title">Day Timeline</p>
           </div>
-          <span className="text-xs text-zinc-600">{timeline.length} events</span>
+          <span className="text-xs text-zinc-600">{mockEODTimeline.length} events</span>
         </div>
 
         <div className="px-5 py-4">
@@ -524,7 +517,7 @@ export default function EODDashboard() {
             <div className="absolute left-[18px] top-3 bottom-3 w-px bg-zinc-800" />
 
             <ul className="space-y-1">
-              {timeline.map((ev, i) => {
+              {mockEODTimeline.map((ev, i) => {
                 const cfg  = TIMELINE_CFG[ev.icon] || TIMELINE_CFG.close
                 const Icon = cfg.icon
                 return (
@@ -573,15 +566,57 @@ export default function EODDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn-primary btn-sm gap-1.5" onClick={handleExportPDF}>
+            <button
+              onClick={() => setReportOpen(true)}
+              className="btn-primary btn-sm gap-1.5"
+            >
               <FileText size={13} />Full Report
-            </button>
-            <button className="btn-secondary btn-sm gap-1.5" onClick={handleShare}>
-              Share <ArrowRight size={13} />
             </button>
           </div>
         </div>
       </div>
+
+      {/* ── Full Report Modal ── */}
+      <Modal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        title="Full Day Report"
+        description={today}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: 'Total Output',      value: `${s.totalOutput.toLocaleString()} m`,   sub: `${achievePct}% of target` },
+              { label: 'Quality Pass Rate', value: `${passRate}%`,                           sub: `${s.rollsPassed}/${s.rollsProduced} rolls` },
+              { label: 'Attendance',        value: `${attendPct}%`,                          sub: `${s.totalPresent}/${s.totalWorkers} workers` },
+              { label: 'Machine Uptime',    value: `${s.machineUptime}%`,                    sub: `${s.downtimeMins} min downtime` },
+              { label: 'Est. Revenue',      value: formatCurrencyFull(s.estimatedRevenue),   sub: `Cost: ${formatCurrencyFull(s.estimatedCost)}` },
+              { label: 'Est. Profit',       value: formatCurrencyFull(s.estimatedProfit),    sub: 'After operating costs' },
+            ].map(({ label, value, sub }) => (
+              <div key={label} className="bg-zinc-800/50 rounded-xl p-3">
+                <p className="text-2xs text-zinc-500 uppercase tracking-wide mb-1">{label}</p>
+                <p className="text-base font-bold text-zinc-100">{value}</p>
+                <p className="text-2xs text-zinc-600 mt-0.5">{sub}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={async () => { setReportOpen(false); await handleExportPDF() }}
+              className="btn-primary btn-sm flex-1 justify-center gap-1.5"
+              disabled={exporting}
+            >
+              <Download size={13} /> {exporting ? 'Generating…' : 'Download PDF'}
+            </button>
+            <button onClick={() => setReportOpen(false)} className="btn-secondary btn-sm">
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+
     </div>
   )
 }
