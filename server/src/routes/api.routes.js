@@ -324,6 +324,43 @@ const crudRoutes = (modelName, include = null) => {
         }
       }
 
+      // Special handling for dispatch creation
+      if (modelName === 'dispatch') {
+        if (!bodyData.dispatchId) {
+          bodyData.dispatchId = `DSP-${new Date().getFullYear()}-${Math.floor(Math.random() * 89999 + 10000)}`;
+        }
+        bodyData.rolls = Math.round(Number(bodyData.rolls)) || 1;
+        bodyData.metres = Number(bodyData.metres) || 0;
+        bodyData.date = bodyData.date ? new Date(bodyData.date) : new Date();
+        bodyData.status = bodyData.status || 'PENDING';
+        bodyData.buyer = bodyData.buyer || 'Direct Buyer';
+        bodyData.order = bodyData.order || 'ORD-DIRECT';
+
+        // Auto-update linked order status if exists
+        if (bodyData.order && (bodyData.status === 'DISPATCHED' || bodyData.status === 'DELIVERED')) {
+          try {
+            await prisma.order.updateMany({
+              where: { orderNumber: bodyData.order },
+              data: { status: 'DISPATCHED', progress: 100 }
+            });
+          } catch (e) {
+            console.error('Failed to update order status on dispatch:', e);
+          }
+        }
+      }
+
+      // Special handling for invoice creation
+      if (modelName === 'invoice') {
+        if (!bodyData.invoiceId) {
+          bodyData.invoiceId = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 89999 + 10000)}`;
+        }
+        bodyData.amount = Number(bodyData.amount) || 0;
+        bodyData.paid = Number(bodyData.paid) || 0;
+        bodyData.balance = bodyData.balance !== undefined ? Number(bodyData.balance) : (bodyData.amount - bodyData.paid);
+        bodyData.date = bodyData.date ? new Date(bodyData.date) : new Date();
+        bodyData.status = bodyData.status || (bodyData.balance <= 0 ? 'PAID' : (bodyData.paid > 0 ? 'PARTIAL' : 'UNPAID'));
+      }
+
       const data = await prisma[modelName].create({ data: bodyData, include });
       res.status(201).json({ success: true, data });
     } catch (error) {
@@ -352,6 +389,28 @@ const crudRoutes = (modelName, include = null) => {
         if (updateData.rate !== undefined) updateData.rate = Number(updateData.rate);
         if (updateData.total !== undefined) updateData.total = Number(updateData.total);
         if (updateData.expected) updateData.expected = new Date(updateData.expected);
+      }
+      if (modelName === 'dispatch') {
+        if (updateData.rolls !== undefined) updateData.rolls = Math.round(Number(updateData.rolls));
+        if (updateData.metres !== undefined) updateData.metres = Number(updateData.metres);
+        if (updateData.date) updateData.date = new Date(updateData.date);
+
+        if (updateData.order && (updateData.status === 'DISPATCHED' || updateData.status === 'DELIVERED')) {
+          try {
+            await prisma.order.updateMany({
+              where: { orderNumber: updateData.order },
+              data: { status: 'DISPATCHED', progress: 100 }
+            });
+          } catch (e) {
+            console.error('Failed to update order status on dispatch update:', e);
+          }
+        }
+      }
+      if (modelName === 'invoice') {
+        if (updateData.amount !== undefined) updateData.amount = Number(updateData.amount);
+        if (updateData.paid !== undefined) updateData.paid = Number(updateData.paid);
+        if (updateData.balance !== undefined) updateData.balance = Number(updateData.balance);
+        if (updateData.date) updateData.date = new Date(updateData.date);
       }
       const data = await prisma[modelName].update({
         where: { id: req.params.id },
@@ -389,11 +448,13 @@ router.use('/machines', crudRoutes('machine'));
 router.use('/inventory', crudRoutes('inventoryItem'));
 router.use('/workers', crudRoutes('worker'));
 router.use('/customers', crudRoutes('customer'));
+router.use('/buyers', crudRoutes('customer'));
 router.use('/rolls', crudRoutes('roll', { order: true, machine: true }));
 router.use('/suppliers', crudRoutes('supplier'));
 router.use('/gate-entries', crudRoutes('gateEntry'));
 router.use('/purchase-orders', crudRoutes('purchaseOrder'));
 router.use('/dispatch', crudRoutes('dispatch'));
+router.use('/dispatches', crudRoutes('dispatch'));
 router.use('/invoices', crudRoutes('invoice'));
 router.use('/production-entries', crudRoutes('productionEntry'));
 router.use('/downtimes', crudRoutes('downtime'));

@@ -109,7 +109,11 @@ export const dispatchAPI = {
   getFinishedStock: (filters) => handleRes(apiClient.get('/data/rolls/finished', { params: filters })),
   getDispatches: (filters) => handleRes(apiClient.get('/data/dispatch', { params: filters })),
   createDispatch: (data) => handleRes(apiClient.post('/data/dispatch', data)),
+  updateDispatch: (id, data) => handleRes(apiClient.put(`/data/dispatch/${id}`, data)),
+  deleteDispatch: (id) => handleRes(apiClient.delete(`/data/dispatch/${id}`)),
   createInvoice: (data) => handleRes(apiClient.post('/data/invoices', data)),
+  updateInvoice: (id, data) => handleRes(apiClient.put(`/data/invoices/${id}`, data)),
+  deleteInvoice: (id) => handleRes(apiClient.delete(`/data/invoices/${id}`)),
 };
 
 export const financeAPI = {
