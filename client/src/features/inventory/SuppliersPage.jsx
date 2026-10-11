@@ -45,23 +45,19 @@ function validate(form) {
   if (!form.name?.trim())    errors.name  = 'Company name is required'
   if (!form.city?.trim())    errors.city  = 'City is required'
   if (!form.phone?.trim())   errors.phone = 'Contact number is required'
-  if (form.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(form.gstin))
-    errors.gstin = 'Invalid GSTIN format (e.g. 27AABCA1234B1Z5)'
   return errors
 }
 
 /* ── AddEditModal ────────────────────────────────────────────────────── */
-function SupplierModal({ open, onClose, onSave, initial, editMode }) {
+function SupplierModal({ open, onClose, onSave, initial, editMode, isSubmitting }) {
   const [form,   setForm]   = useState(initial || BLANK)
   const [errors, setErrors] = useState({})
-  const [saved,  setSaved]  = useState(false)
 
   // Sync when initial changes (editing different rows)
   useEffect(() => {
     if (open) {
       setForm(initial || BLANK)
       setErrors({})
-      setSaved(false)
     }
   }, [open, initial])
 
@@ -70,15 +66,15 @@ function SupplierModal({ open, onClose, onSave, initial, editMode }) {
     if (errors[k]) setErrors(p => { const e = { ...p }; delete e[k]; return e })
   }
 
-  const handleSave = () => {
+  const handleSave = async (e) => {
+    if (e) e.preventDefault()
     const errs = validate(form)
     if (Object.keys(errs).length) { setErrors(errs); return }
-    setSaved(true)
-    setTimeout(() => {
-      onSave(form)
-      setSaved(false)
-      onClose()
-    }, 700)
+    try {
+      await onSave(form)
+    } catch (err) {
+      setErrors({ form: err?.message || 'Failed to save supplier' })
+    }
   }
 
   return (
@@ -254,16 +250,13 @@ function SupplierModal({ open, onClose, onSave, initial, editMode }) {
             <span className="text-red-400">*</span> Required fields
           </p>
           <div className="flex gap-2">
-            <button className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button className="btn-secondary" onClick={onClose} disabled={isSubmitting}>Cancel</button>
             <button
-              className={cn('btn-primary gap-2', saved && 'bg-emerald-600 hover:bg-emerald-500')}
+              className="btn-primary gap-2"
               onClick={handleSave}
-              disabled={saved}
+              disabled={isSubmitting}
             >
-              {saved
-                ? <><CheckCircle size={14} />{editMode ? 'Updated!' : 'Supplier Added!'}</>
-                : editMode ? 'Save Changes' : 'Add Supplier'
-              }
+              {isSubmitting ? 'Saving...' : (editMode ? 'Save Changes' : 'Add Supplier')}
             </button>
           </div>
         </div>
@@ -273,7 +266,7 @@ function SupplierModal({ open, onClose, onSave, initial, editMode }) {
 }
 
 /* ── Delete confirm modal ─────────────────────────────────────────────── */
-function DeleteModal({ open, supplier, onConfirm, onClose }) {
+function DeleteModal({ open, supplier, onConfirm, onClose, isDeleting }) {
   return (
     <Modal open={open} onClose={onClose} title="Remove Supplier" size="sm">
       <div className="space-y-4">
@@ -282,13 +275,15 @@ function DeleteModal({ open, supplier, onConfirm, onClose }) {
           <div>
             <p className="text-sm font-semibold text-red-300">Remove {supplier?.name}?</p>
             <p className="text-xs text-red-400/80 mt-0.5">
-              This will remove the supplier from the list. Any existing POs will remain unaffected.
+              This will permanently remove the supplier from the database.
             </p>
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-danger" onClick={onConfirm}>Yes, Remove</button>
+          <button className="btn-secondary" onClick={onClose} disabled={isDeleting}>Cancel</button>
+          <button className="btn-danger flex items-center gap-1.5" onClick={onConfirm} disabled={isDeleting}>
+            <Trash2 size={13} /> {isDeleting ? 'Removing...' : 'Yes, Remove'}
+          </button>
         </div>
       </div>
     </Modal>
@@ -303,10 +298,16 @@ export default function SuppliersPage() {
   const updateSupplierMutation = useUpdateSupplier()
   const deleteSupplierMutation = useDeleteSupplier()
 
-  const [search,      setSearch]      = useState('')
-  const [showAdd,     setShowAdd]     = useState(false)
-  const [editTarget,  setEditTarget]  = useState(null)
-  const [deleteTarget,setDeleteTarget]= useState(null)
+  const [search,       setSearch]       = useState('')
+  const [showAdd,      setShowAdd]      = useState(false)
+  const [editTarget,   setEditTarget]   = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [toast,        setToast]        = useState(null)
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }
 
   const filtered = suppliers.filter(s =>
     s.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -334,17 +335,20 @@ export default function SuppliersPage() {
         notes: form.notes,
         activePos: 0,
       })
+      setShowAdd(false)
+      showToast(`Supplier "${form.name}" added successfully!`)
     } catch (err) {
-      console.error('Failed to add supplier:', err)
-      alert('Failed to add supplier: ' + (err?.message || err))
+      showToast('Failed to add supplier: ' + (err?.message || err), 'error')
+      throw err
     }
   }
 
   const handleEdit = async (form) => {
-    if (!editTarget) return
+    const target = editTarget
+    if (!target) return
     try {
       await updateSupplierMutation.mutateAsync({
-        id: editTarget.id,
+        id: target.id,
         name: form.name || form.companyName,
         contactPerson: form.contactPerson,
         city: form.city,
@@ -361,20 +365,22 @@ export default function SuppliersPage() {
         notes: form.notes,
       })
       setEditTarget(null)
+      showToast(`Supplier "${form.name}" updated successfully!`)
     } catch (err) {
-      console.error('Failed to update supplier:', err)
-      alert('Failed to update supplier: ' + (err?.message || err))
+      showToast('Failed to update supplier: ' + (err?.message || err), 'error')
+      throw err
     }
   }
 
   const handleDelete = async () => {
-    if (!deleteTarget) return
+    const target = deleteTarget
+    if (!target) return
     try {
-      await deleteSupplierMutation.mutateAsync(deleteTarget.id)
+      await deleteSupplierMutation.mutateAsync(target.id)
       setDeleteTarget(null)
+      showToast(`Supplier "${target.name}" removed successfully!`)
     } catch (err) {
-      console.error('Failed to delete supplier:', err)
-      alert('Failed to delete supplier: ' + (err?.message || err))
+      showToast('Failed to delete supplier: ' + (err?.message || err), 'error')
     }
   }
 
@@ -383,6 +389,16 @@ export default function SuppliersPage() {
 
   return (
     <div className="page-root">
+      {/* Visual Feedback Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl shadow-xl border text-sm font-semibold flex items-center gap-2 ${
+          toast.type === 'error'
+            ? 'bg-red-950/95 border-red-700 text-red-200'
+            : 'bg-emerald-950/95 border-emerald-700 text-emerald-200'
+        }`}>
+          <span>{toast.message}</span>
+        </div>
+      )}
       <PageHeader
         title="Suppliers"
         subtitle={`${suppliers.length} supplier${suppliers.length !== 1 ? 's' : ''} registered`}
@@ -532,6 +548,7 @@ export default function SuppliersPage() {
         onSave={handleAdd}
         initial={BLANK}
         editMode={false}
+        isSubmitting={createSupplierMutation.isPending}
       />
 
       {/* ── Edit modal ── */}
@@ -559,6 +576,7 @@ export default function SuppliersPage() {
           : BLANK
         }
         editMode
+        isSubmitting={updateSupplierMutation.isPending}
       />
 
       {/* ── Delete confirm ── */}
@@ -567,6 +585,7 @@ export default function SuppliersPage() {
         supplier={deleteTarget}
         onConfirm={handleDelete}
         onClose={() => setDeleteTarget(null)}
+        isDeleting={deleteSupplierMutation.isPending}
       />
     </div>
   )

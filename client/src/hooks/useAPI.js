@@ -300,8 +300,11 @@ export const useCreateSupplier = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data) => API.inventory.createSupplier(data),
-    onSuccess: () => {
+    onSuccess: (newSupplier) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'suppliers'] })
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      queryClient.refetchQueries({ queryKey: queryKeys.suppliers })
     },
   })
 }
@@ -309,9 +312,25 @@ export const useCreateSupplier = () => {
 export const useUpdateSupplier = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => API.inventory.updateSupplier(id, data),
-    onSuccess: () => {
+    mutationFn: (payload) => {
+      const id = payload.id
+      const data = payload.data ? payload.data : { ...payload }
+      delete data.id
+      return API.inventory.updateSupplier(id, data)
+    },
+    onSuccess: (res, vars) => {
+      const id = vars.id
+      const updatedItem = res?.data || res
+      queryClient.setQueryData(queryKeys.suppliers, (old) => {
+        if (!old) return old
+        if (Array.isArray(old)) return old.map(s => s.id === id ? { ...s, ...updatedItem } : s)
+        if (Array.isArray(old?.data)) return { ...old, data: old.data.map(s => s.id === id ? { ...s, ...updatedItem } : s) }
+        return old
+      })
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'suppliers'] })
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      queryClient.refetchQueries({ queryKey: queryKeys.suppliers })
     },
   })
 }
@@ -320,8 +339,17 @@ export const useDeleteSupplier = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id) => API.inventory.deleteSupplier(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(queryKeys.suppliers, (old) => {
+        if (!old) return old
+        if (Array.isArray(old)) return old.filter(s => s.id !== id)
+        if (Array.isArray(old?.data)) return { ...old, data: old.data.filter(s => s.id !== id) }
+        return old
+      })
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'suppliers'] })
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      queryClient.refetchQueries({ queryKey: queryKeys.suppliers })
     },
   })
 }
@@ -469,6 +497,28 @@ export const useCreateDispatch = () => {
     mutationFn: (data) => API.dispatch.createDispatch(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dispatch'] })
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
+export const useUpdateDispatch = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => API.dispatch.updateDispatch(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatch'] })
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
+export const useDeleteDispatch = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => API.dispatch.deleteDispatch(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatch'] })
     },
   })
 }
@@ -478,7 +528,30 @@ export const useCreateInvoice = () => {
   return useMutation({
     mutationFn: (data) => API.dispatch.createInvoice(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dispatch', 'invoices'] })
+      queryClient.invalidateQueries({ queryKey: ['dispatch'] })
+      queryClient.invalidateQueries({ queryKey: ['finance'] })
+    },
+  })
+}
+
+export const useUpdateInvoice = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => API.dispatch.updateInvoice(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatch'] })
+      queryClient.invalidateQueries({ queryKey: ['finance'] })
+    },
+  })
+}
+
+export const useDeleteInvoice = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => API.dispatch.deleteInvoice(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatch'] })
+      queryClient.invalidateQueries({ queryKey: ['finance'] })
     },
   })
 }
