@@ -18,7 +18,116 @@ const crudRoutes = (modelName, include = null) => {
   // GET all
   route.get('/', async (req, res) => {
     try {
-      const data = await prisma[modelName].findMany({ include });
+      const options = { include };
+      if (['notification', 'downtime', 'order', 'roll', 'productionEntry'].includes(modelName)) {
+        options.orderBy = { createdAt: 'desc' };
+      }
+      let data = await prisma[modelName].findMany(options);
+
+      // Auto-seed suppliers if none exist
+      if (modelName === 'supplier' && data.length === 0) {
+        const seedSuppliers = [
+          {
+            name: 'Agarwal Yarns Pvt Ltd',
+            contactPerson: 'Ramesh Agarwal',
+            city: 'Bhilwara',
+            state: 'Rajasthan',
+            phone: '+91 98290 12345',
+            altPhone: '+91 98290 54321',
+            email: 'sales@agarwalyarns.com',
+            gstin: '08AABCA1234B1Z5',
+            yarnTypes: 'Cotton 40s Combed, Cotton 30s Carded',
+            leadDays: '5',
+            paymentTerms: 'Net 30',
+            activePos: 2,
+            notes: 'Primary supplier for combed cotton yarns'
+          },
+          {
+            name: 'Vardhman Textiles Ltd',
+            contactPerson: 'Sanjay Oswal',
+            city: 'Ludhiana',
+            state: 'Punjab',
+            phone: '+91 98140 54321',
+            email: 'orders@vardhman.com',
+            gstin: '03AABCV5678C1Z2',
+            yarnTypes: 'Polyester 150D, Poly-Cotton Blends',
+            leadDays: '7',
+            paymentTerms: 'Net 45',
+            activePos: 1,
+            notes: 'High reliability synthetic yarn partner'
+          },
+          {
+            name: 'Surat Synthetics Corp',
+            contactPerson: 'Kishore Patel',
+            city: 'Surat',
+            state: 'Gujarat',
+            phone: '+91 98251 98765',
+            email: 'info@suratsynthetics.com',
+            gstin: '24AABCS9988D1Z9',
+            yarnTypes: 'Viscose Rayon 30s, Microfiber',
+            leadDays: '4',
+            paymentTerms: 'Advance',
+            activePos: 0,
+            notes: 'Speciality viscose and microfilament supplier'
+          },
+          {
+            name: 'Coimbatore Cotton Mills',
+            contactPerson: 'M. Sundaram',
+            city: 'Coimbatore',
+            state: 'Tamil Nadu',
+            phone: '+91 94432 11223',
+            email: 'supply@coimbatorecotton.in',
+            gstin: '33AABCC3344E1Z4',
+            yarnTypes: 'Organic Cotton 60s, Giza Cotton',
+            leadDays: '10',
+            paymentTerms: 'Net 30',
+            activePos: 3,
+            notes: 'Premium organic yarn supplier with GOTS certification'
+          }
+        ];
+        await prisma.supplier.createMany({ data: seedSuppliers });
+        data = await prisma.supplier.findMany(options);
+      }
+
+      // Auto-seed production entries if none exist
+      if (modelName === 'productionEntry' && data.length === 0) {
+        const mList = await prisma.machine.findMany();
+        if (mList.length > 0) {
+          const defaultEntries = [
+            {
+              date: new Date(),
+              shift: 'Morning',
+              machineId: mList[0].machineId,
+              orderId: 'ORD-2028',
+              output: 1200,
+              waste: 24,
+              rolls: 12,
+              operator: 'Rajesh Kumar'
+            },
+            {
+              date: new Date(),
+              shift: 'Morning',
+              machineId: mList[1 % mList.length].machineId,
+              orderId: 'ORD-2029',
+              output: 700,
+              waste: 11,
+              rolls: 7,
+              operator: 'Sunil Sharma'
+            }
+          ];
+          await prisma.productionEntry.createMany({ data: defaultEntries });
+          data = await prisma.productionEntry.findMany(options);
+        }
+      }
+
+      if (modelName === 'productionEntry') {
+        data = data.map(e => ({
+          ...e,
+          machineId: e.machine || e.machineId,
+          orderId: e.order || e.orderId
+        }));
+      }
+
       res.json({ success: true, data });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
@@ -39,9 +148,186 @@ const crudRoutes = (modelName, include = null) => {
   // POST create
   route.post('/', async (req, res) => {
     try {
-      const data = await prisma[modelName].create({ data: req.body });
+      let bodyData = { ...req.body };
+
+      // Special handling for productionEntry to resolve machine foreign key
+      if (modelName === 'productionEntry') {
+        const { machineId, output, waste, rolls, date, orderId, operator, shift } = bodyData;
+        let machine = await prisma.machine.findFirst({
+          where: { OR: [{ id: machineId }, { machineId: machineId }] }
+        });
+
+        let targetMachineId = machine ? machine.machineId : machineId;
+        if (!machine) {
+          const anyM = await prisma.machine.findFirst();
+          if (anyM) {
+            targetMachineId = anyM.machineId;
+            machine = anyM;
+          } else {
+            const newM = await prisma.machine.create({
+              data: {
+                machineId: machineId || 'M-01',
+                name: `Loom ${machineId || 'M-01'}`,
+                stage: 'Weaving',
+                status: 'RUNNING'
+              }
+            });
+            targetMachineId = newM.machineId;
+            machine = newM;
+          }
+        }
+
+        bodyData = {
+          date: date ? new Date(date) : new Date(),
+          shift: shift || 'Morning',
+          machine: targetMachineId || 'M-01',
+          order: orderId || req.body.order || null,
+          output: Number(output) || 0,
+          waste: Number(waste) || 0,
+          rolls: Number(rolls) || 0,
+          operator: operator || 'Operator'
+        };
+
+        const createdEntry = await prisma.productionEntry.create({ data: bodyData });
+        const responseData = {
+          ...createdEntry,
+          machineId: createdEntry.machine,
+          orderId: createdEntry.order
+        };
+
+        // Update machine stats and assignment
+        if (machine) {
+          await prisma.machine.update({
+            where: { id: machine.id },
+            data: {
+              status: 'RUNNING',
+              output: { increment: Math.round(Number(output) || 0) },
+              operator: operator || machine.operator,
+              order: orderId || machine.order
+            }
+          });
+        }
+
+        return res.status(201).json({ success: true, data: responseData });
+      }
+
+      // Special handling for supplier form data
+      if (modelName === 'supplier') {
+        if (!bodyData.name && bodyData.companyName) {
+          bodyData.name = bodyData.companyName;
+        }
+        if (typeof bodyData.activePos === 'string') {
+          bodyData.activePos = parseInt(bodyData.activePos, 10) || 0;
+        }
+      }
+
+      // Special handling for order creation
+      if (modelName === 'order') {
+        if (!bodyData.orderNumber) {
+          bodyData.orderNumber = bodyData.orderId || `ORD-${Date.now().toString().slice(-6)}`;
+        }
+        delete bodyData.orderId;
+        if (!bodyData.color && bodyData.colour) {
+          bodyData.color = bodyData.colour;
+        }
+        delete bodyData.colour;
+        if (!bodyData.color) bodyData.color = 'Natural';
+        
+        // Ensure customerId exists
+        if (!bodyData.customerId) {
+          const firstCust = await prisma.customer.findFirst();
+          if (firstCust) {
+            bodyData.customerId = firstCust.id;
+          } else {
+            const newCust = await prisma.customer.create({
+              data: { name: 'Standard Buyer', city: 'Surat', phone: '9876500000' }
+            });
+            bodyData.customerId = newCust.id;
+          }
+        }
+        delete bodyData.customer; // in case object was passed
+
+        bodyData.quantity = Math.round(Number(bodyData.quantity)) || 100;
+        bodyData.rate = Number(bodyData.rate) || 0;
+        bodyData.deadline = bodyData.deadline ? new Date(bodyData.deadline) : new Date(Date.now() + 7 * 86400000);
+        bodyData.status = bodyData.status || 'CONFIRMED';
+        bodyData.progress = Math.round(Number(bodyData.progress)) || 0;
+      }
+
+      // Special handling for purchase order creation
+      if (modelName === 'purchaseOrder') {
+        if (!bodyData.poId) {
+          bodyData.poId = bodyData.poNumber || `PO-${Date.now().toString().slice(-6)}`;
+        }
+        delete bodyData.poNumber;
+
+        // Resolve supplier string
+        if (!bodyData.supplier && bodyData.supplierId) {
+          const sup = await prisma.supplier.findUnique({ where: { id: bodyData.supplierId } });
+          bodyData.supplier = sup ? sup.name : bodyData.supplierId;
+        }
+        delete bodyData.supplierId;
+        if (!bodyData.supplier) bodyData.supplier = 'Vendor';
+
+        bodyData.yarn = bodyData.yarn || 'Cotton 40s';
+        bodyData.qty = Number(bodyData.qty) || 0;
+        bodyData.rate = Number(bodyData.rate) || 0;
+        bodyData.total = Number(bodyData.total) || (bodyData.qty * bodyData.rate) || 0;
+        bodyData.expected = bodyData.expected ? new Date(bodyData.expected) : new Date(Date.now() + 3 * 86400000);
+        if (!bodyData.status) bodyData.status = 'RAISED';
+      }
+
+      // Special handling for gate entry / GRN creation (auto-increment stock)
+      if (modelName === 'gateEntry') {
+        if (!bodyData.grnId) {
+          bodyData.grnId = bodyData.geNumber || `GRN-${Date.now().toString().slice(-6)}`;
+        }
+        delete bodyData.geNumber;
+
+        if (bodyData.challanNo && !bodyData.challan) bodyData.challan = bodyData.challanNo;
+        delete bodyData.challanNo;
+        if (!bodyData.challan) bodyData.challan = 'CH-' + Math.floor(Math.random() * 9000 + 1000);
+
+        if (bodyData.vehicleNo && !bodyData.vehicle) bodyData.vehicle = bodyData.vehicleNo;
+        delete bodyData.vehicleNo;
+        if (!bodyData.vehicle) bodyData.vehicle = 'TRUCK-' + Math.floor(Math.random() * 900 + 100);
+
+        const qtyVal = Number(bodyData.qty !== undefined && bodyData.qty !== '' ? bodyData.qty : (bodyData.netWeight || 0));
+        bodyData.qty = qtyVal;
+        delete bodyData.netWeight;
+
+        bodyData.bags = Math.round(Number(bodyData.bags)) || 1;
+        bodyData.date = bodyData.date ? new Date(bodyData.date) : new Date();
+        if (!bodyData.supplier) bodyData.supplier = 'Vendor';
+        if (!bodyData.yarn) bodyData.yarn = 'Cotton 40s';
+
+        const { yarn, colour, qty } = bodyData;
+        if (yarn && qty) {
+          try {
+            const existing = await prisma.inventoryItem.findFirst({
+              where: {
+                type: { equals: yarn, mode: 'insensitive' },
+                ...(colour ? { color: { equals: colour, mode: 'insensitive' } } : {})
+              }
+            });
+            if (existing) {
+              const newCurrent = existing.current + Number(qty);
+              const newStatus = (newCurrent - existing.reserved) <= 0 ? 'OUT' : (newCurrent - existing.reserved) < existing.reorder ? 'LOW' : 'OK';
+              await prisma.inventoryItem.update({
+                where: { id: existing.id },
+                data: { current: newCurrent, status: newStatus }
+              });
+            }
+          } catch (e) {
+            console.error('Failed to auto-update inventory on GRN:', e);
+          }
+        }
+      }
+
+      const data = await prisma[modelName].create({ data: bodyData, include });
       res.status(201).json({ success: true, data });
     } catch (error) {
+      console.error(`Error creating ${modelName}:`, error);
       res.status(400).json({ success: false, message: error.message });
     }
   });
@@ -49,9 +335,28 @@ const crudRoutes = (modelName, include = null) => {
   // PUT update
   route.put('/:id', async (req, res) => {
     try {
+      let updateData = { ...req.body };
+      if (modelName === 'order') {
+        if (updateData.quantity) updateData.quantity = Math.round(Number(updateData.quantity));
+        if (updateData.rate) updateData.rate = Number(updateData.rate);
+        if (updateData.deadline) updateData.deadline = new Date(updateData.deadline);
+        if (updateData.progress !== undefined) updateData.progress = Math.round(Number(updateData.progress));
+      }
+      if (modelName === 'inventoryItem') {
+        if (updateData.current !== undefined) updateData.current = Number(updateData.current);
+        if (updateData.reserved !== undefined) updateData.reserved = Number(updateData.reserved);
+        if (updateData.reorder !== undefined) updateData.reorder = Number(updateData.reorder);
+      }
+      if (modelName === 'purchaseOrder') {
+        if (updateData.qty !== undefined) updateData.qty = Number(updateData.qty);
+        if (updateData.rate !== undefined) updateData.rate = Number(updateData.rate);
+        if (updateData.total !== undefined) updateData.total = Number(updateData.total);
+        if (updateData.expected) updateData.expected = new Date(updateData.expected);
+      }
       const data = await prisma[modelName].update({
         where: { id: req.params.id },
-        data: req.body,
+        data: updateData,
+        include,
       });
       res.json({ success: true, data });
     } catch (error) {

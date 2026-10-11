@@ -306,6 +306,26 @@ export const useCreateSupplier = () => {
   })
 }
 
+export const useUpdateSupplier = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => API.inventory.updateSupplier(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers })
+    },
+  })
+}
+
+export const useDeleteSupplier = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => API.inventory.deleteSupplier(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers })
+    },
+  })
+}
+
 export const usePurchaseOrders = (filters = {}) => {
   return useQuery({
     queryKey: queryKeys.purchaseOrders(filters),
@@ -318,6 +338,33 @@ export const useCreatePurchaseOrder = () => {
   return useMutation({
     mutationFn: (data) => API.inventory.createPurchaseOrder(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders() })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'purchase-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'purchaseOrders'] })
+    },
+  })
+}
+
+export const useUpdatePurchaseOrder = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => API.inventory.updatePurchaseOrder(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders() })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'purchase-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'purchaseOrders'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'stock'] })
+    },
+  })
+}
+
+export const useDeletePurchaseOrder = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => API.inventory.deletePurchaseOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders() })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'purchase-orders'] })
       queryClient.invalidateQueries({ queryKey: ['inventory', 'purchaseOrders'] })
     },
   })
@@ -335,7 +382,58 @@ export const useCreateGateEntry = () => {
   return useMutation({
     mutationFn: (data) => API.inventory.createGateEntry(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.gateEntries() })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'gate-entries'] })
       queryClient.invalidateQueries({ queryKey: ['inventory', 'gateEntries'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'stock'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stock() })
+    },
+  })
+}
+
+export const useUpdateGateEntry = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => API.inventory.updateGateEntry(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.gateEntries() })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'gate-entries'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'gateEntries'] })
+    },
+  })
+}
+
+export const useDeleteGateEntry = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => API.inventory.deleteGateEntry(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.gateEntries() })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'gate-entries'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'gateEntries'] })
+    },
+  })
+}
+
+export const useUpdateStockItem = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => API.inventory.updateStock(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stock() })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'stock'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+export const useCreateStockItem = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => API.inventory.createStock(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stock() })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'stock'] })
     },
   })
 }
@@ -465,6 +563,19 @@ export const useWages = (month, year) => {
     queryKey: queryKeys.wages(month, year),
     queryFn: () => API.hr.getWages(month, year),
     enabled: !!month && !!year,
+  })
+}
+
+export const useGeneratePayroll = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ month, year }) => API.hr.generatePayroll(month, year),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.wages(variables?.month, variables?.year) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workerProfiles })
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts })
+      queryClient.invalidateQueries({ queryKey: ['hr'] })
+    },
   })
 }
 

@@ -44,7 +44,7 @@ export default function DowntimePage() {
             {downtimes.map(d => (
               <tr key={d.id}>
                 <td>
-                  <p className="font-mono text-xs text-zinc-300">{d.machineId}</p>
+                  <p className="font-mono text-xs text-zinc-300">{d.machine || d.machineId || d.name}</p>
                 </td>
                 <td className="font-mono text-xs text-zinc-400">{formatDate(d.start)}</td>
                 <td className="font-mono text-xs">{d.end ? formatDate(d.end) : <span className="text-red-400 font-semibold">Ongoing</span>}</td>

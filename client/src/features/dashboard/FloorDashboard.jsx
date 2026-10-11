@@ -6,6 +6,8 @@ import { ErrorMessage } from '../../components/ui/ErrorMessage'
 import { useAuth }    from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
 import { useFloorStats, useMachines } from '../../hooks/useAPI'
+import { Modal } from '../../components/ui/Modal'
+import { Badge } from '../../components/ui/Badge'
 import { cn } from '../../lib/utils'
 
 const STATUS = {
@@ -26,10 +28,12 @@ const STATUS = {
   },
 }
 
-function MachineCard({ m }) {
+function MachineCard({ m, onSelect }) {
   const s = STATUS[m.status] || STATUS.IDLE
   return (
-    <div className={cn(
+    <div 
+      onClick={onSelect}
+      className={cn(
       'card p-4 cursor-pointer transition-all duration-200 border-2 group',
       s.border, s.bg,
     )}>
@@ -81,6 +85,7 @@ function MachineCard({ m }) {
 export default function FloorDashboard() {
   const { user } = useAuth()
   const [filter, setFilter] = useState('ALL')
+  const [selected, setSelected] = useState(null)
   
   // Fetch data
   const { data: statsData, isLoading: statsLoading, error: statsError, refetch } = useFloorStats()
@@ -176,9 +181,42 @@ export default function FloorDashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map(m => <MachineCard key={m.id} m={m} />)}
+          {filtered.map(m => <MachineCard key={m.id} m={m} onSelect={() => setSelected(m)} />)}
         </div>
       )}
+
+      {/* Machine Details Modal */}
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.name} description={selected?.machineId || selected?.id}>
+        {selected && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
+              {[
+                ['Stage', selected.stage],
+                ['Status', selected.status],
+                ['Operator', selected.operator ?? 'Unassigned'],
+                ['Active Order', selected.order ?? 'None'],
+                ['Output Today', selected.output > 0 ? `${selected.output} m` : '0 m']
+              ].map(([k, v]) => (
+                <div key={k} className="bg-zinc-800/60 rounded-xl p-3 border border-zinc-700/30">
+                  <p className="text-zinc-500 mb-0.5 text-2xs uppercase font-medium">{k}</p>
+                  <p className="font-semibold text-zinc-100">{v}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/60">
+              <span className="text-xs text-zinc-400">Current Health:</span>
+              <span className={cn('badge', selected.status === 'RUNNING' ? 'badge-green' : selected.status === 'BREAKDOWN' ? 'badge-red' : 'badge-yellow')}>
+                {selected.status}
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button className="btn-secondary btn-sm" onClick={() => setSelected(null)}>Close</button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

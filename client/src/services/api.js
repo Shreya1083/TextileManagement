@@ -63,14 +63,22 @@ export const productionAPI = {
 
 export const inventoryAPI = {
   getStock: (filters) => handleRes(apiClient.get('/data/inventory', { params: filters })),
+  createStock: (data) => handleRes(apiClient.post('/data/inventory', data)),
+  updateStock: (id, data) => handleRes(apiClient.put(`/data/inventory/${id}`, data)),
   getRolls: () => handleRes(apiClient.get('/data/rolls')),
   getLowStockItems: () => handleRes(apiClient.get('/data/inventory/low')),
   getSuppliers: () => handleRes(apiClient.get('/data/suppliers')),
   createSupplier: (data) => handleRes(apiClient.post('/data/suppliers', data)),
+  updateSupplier: (id, data) => handleRes(apiClient.put(`/data/suppliers/${id}`, data)),
+  deleteSupplier: (id) => handleRes(apiClient.delete(`/data/suppliers/${id}`)),
   getPurchaseOrders: (filters) => handleRes(apiClient.get('/data/purchase-orders', { params: filters })),
   createPurchaseOrder: (data) => handleRes(apiClient.post('/data/purchase-orders', data)),
+  updatePurchaseOrder: (id, data) => handleRes(apiClient.put(`/data/purchase-orders/${id}`, data)),
+  deletePurchaseOrder: (id) => handleRes(apiClient.delete(`/data/purchase-orders/${id}`)),
   getGateEntries: (filters) => handleRes(apiClient.get('/data/gate-entries', { params: filters })),
   createGateEntry: (data) => handleRes(apiClient.post('/data/gate-entries', data)),
+  updateGateEntry: (id, data) => handleRes(apiClient.put(`/data/gate-entries/${id}`, data)),
+  deleteGateEntry: (id) => handleRes(apiClient.delete(`/data/gate-entries/${id}`)),
   getBOMs: (filters) => handleRes(apiClient.get('/data/boms', { params: filters })),
 };
 
@@ -92,6 +100,7 @@ export const hrAPI = {
   getWorkerDashboardStats: () => handleRes(apiClient.get('/data/hr/stats')),
   getAttendanceSummary: (months) => handleRes(apiClient.get('/data/hr/attendance-summary', { params: { months } })),
   getWageTrend: (months) => handleRes(apiClient.get('/data/hr/wage-trend', { params: { months } })),
+  generatePayroll: (month, year) => handleRes(apiClient.post('/data/hr/generate-payroll', { month, year })),
 };
 
 export const dispatchAPI = {
@@ -154,6 +163,7 @@ const API = {
   finance: financeAPI,
   tracking: trackingAPI,
   settings: settingsAPI,
+  notifications: notificationsAPI,
 };
 
 export default API;

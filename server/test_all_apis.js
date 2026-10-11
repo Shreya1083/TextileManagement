@@ -41,7 +41,7 @@ async function runTests() {
     customerId = cust.id;
 
     const mach = await prisma.machine.create({
-      data: { machineId: 'M-E2E-' + Date.now(), name: 'E2E Loom', type: 'WEAVING', status: 'RUNNING' }
+      data: { machineId: 'M-E2E-' + Date.now(), name: 'E2E Loom', stage: 'WEAVING', status: 'RUNNING' }
     });
     machineId = mach.id;
 
@@ -94,10 +94,7 @@ async function runTests() {
         rollNumber: 'ROLL-E2E-' + Date.now(),
         order: { connect: { id: orderId } },
         machine: { connect: { id: machineId } },
-        fabric: 'E2E Cotton',
-        color: 'White',
         length: 120,
-        weight: 25,
         status: 'PASSED',
         producedAt: new Date()
       }

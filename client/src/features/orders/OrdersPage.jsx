@@ -6,8 +6,8 @@ import { Modal }      from '../../components/ui/Modal'
 import { ExportMenu } from '../../components/ui/ExportMenu'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { ErrorMessage } from '../../components/ui/ErrorMessage'
-import { useOrders, useCreateOrder, useBuyers, useStock, useBOMs, useSettings } from '../../hooks/useAPI'
-import { formatDate } from '../../lib/utils'
+import { useOrders, useCreateOrder, useUpdateOrder, useBuyers, useStock, useBOMs, useSettings } from '../../hooks/useAPI'
+import { formatDate, formatCurrencyFull } from '../../lib/utils'
 import { exportPDF, exportExcel } from '../../lib/exportUtils'
 import { cn } from '../../lib/utils'
 
@@ -21,9 +21,10 @@ function buildRows(orders) {
 }
 
 export default function OrdersPage() {
-  const [search, setSearch]   = useState('')
-  const [tab, setTab]         = useState('ALL')
-  const [showAdd, setShowAdd] = useState(false)
+  const [search, setSearch]       = useState('')
+  const [tab, setTab]             = useState('ALL')
+  const [showAdd, setShowAdd]     = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState(null)
 
   // Fetch orders
   const { data: ordersData, isLoading, error } = useOrders()
@@ -123,7 +124,10 @@ export default function OrdersPage() {
                   </td>
                   <td><Badge status={o.status} /></td>
                   <td>
-                    <button className="btn-ghost btn-xs text-primary-400 gap-1">
+                    <button
+                      className="btn-ghost btn-xs text-primary-400 gap-1 hover:text-primary-300"
+                      onClick={() => setSelectedOrder(o)}
+                    >
                       View <ArrowUpRight size={10} />
                     </button>
                   </td>
@@ -141,42 +145,44 @@ export default function OrdersPage() {
           const data = Object.fromEntries(fd.entries())
           try {
             await createOrderMutation.mutateAsync({
-              orderNumber: `ORD-${Math.floor(Math.random() * 10000)}`,
+              orderNumber: `ORD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
               customerId: data.buyerId,
               fabric: orderFabric,
               color: orderColor,
-              quantity: Number(orderQty),
-              rate: Number(data.rate),
+              quantity: Math.round(Number(orderQty)),
+              rate: Number(data.rate) || 85,
               deadline: new Date(data.deadline).toISOString(),
-              status: 'CONFIRMED'
+              status: 'CONFIRMED',
+              progress: 0
             })
             setShowAdd(false)
             setOrderColor('')
             setOrderQty('')
           } catch (err) {
             console.error('Failed to create order', err)
+            alert('Failed to create order: ' + (err?.message || err))
           }
         }}>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Buyer</label>
-              <select name="buyerId" className="input" required>
-                <option value="">Select Buyer...</option>
+            <div><label className="label">Buyer <span className="text-red-400">*</span></label>
+              <select name="buyerId" className="input" required defaultValue="">
+                <option value="" disabled>Select Buyer...</option>
                 {buyers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
             <div><label className="label">Fabric Type</label>
               <select name="fabric" className="input" value={orderFabric} onChange={(e) => setOrderFabric(e.target.value)}>
-                {(settingsData?.data?.fabrics || ['Cotton Voile','Linen Blend','Silk Chiffon','Denim']).map(f => (
+                {(settingsData?.data?.fabrics || ['Cotton Voile','Linen Blend','Silk Chiffon','Denim','Cotton 40s']).map(f => (
                   <option key={f} value={f}>{f}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">Colour</label>
-              <input name="color" className="input" placeholder="Sky Blue" required value={orderColor} onChange={e => setOrderColor(e.target.value)} />
+              <label className="label">Colour <span className="text-red-400">*</span></label>
+              <input name="color" className="input" placeholder="e.g. Sky Blue" required value={orderColor} onChange={e => setOrderColor(e.target.value)} />
             </div>
             <div>
-              <label className="label">Quantity (metres)</label>
+              <label className="label">Quantity (metres) <span className="text-red-400">*</span></label>
               <input name="quantity" className="input" type="number" placeholder="1000" required value={orderQty} onChange={e => setOrderQty(e.target.value)} />
             </div>
             
@@ -188,11 +194,9 @@ export default function OrdersPage() {
                   BOM Material Check
                 </p>
                 {(() => {
-                  // Find applicable BOM (case-insensitive for fabric and color)
                   const bom = boms.find(b => b.fabric?.toLowerCase() === orderFabric?.toLowerCase() && b.color?.toLowerCase() === orderColor?.toLowerCase());
                   
                   if (!bom || !bom.items || bom.items.length === 0) {
-                    // Fallback to hardcoded estimation if no BOM exists
                     const requiredYarn = Number(orderQty) * 0.4;
                     const matchingStock = inventory.filter(i => i.color?.toLowerCase().includes(orderColor.toLowerCase()));
                     const availableYarn = matchingStock.reduce((sum, item) => sum + (item.current - item.reserved), 0);
@@ -212,13 +216,10 @@ export default function OrdersPage() {
                     );
                   }
 
-                  // We have a BOM, calculate exact requirements per BOMItem
                   return (
                     <div className="space-y-1">
                       {bom.items.map(bomItem => {
                         const requiredAmount = Number(orderQty) * bomItem.quantity;
-                        // bomItem.inventory is populated from backend ideally, but we have inventory loaded here.
-                        // Assuming bomItem.inventoryId points to our inventory items
                         const itemInStock = inventory.find(i => i.id === bomItem.inventoryId);
                         const available = itemInStock ? (itemInStock.current - itemInStock.reserved) : 0;
                         const isEnough = available >= requiredAmount;
@@ -226,7 +227,7 @@ export default function OrdersPage() {
                         return (
                           <div key={bomItem.id} className="text-xs flex items-center justify-between py-1 border-b border-zinc-800/50 last:border-0">
                             <span className="text-zinc-500 flex gap-2">
-                              <span><span className="text-zinc-300">{itemInStock?.item || 'Unknown Item'}</span> ({itemInStock?.color})</span>
+                              <span><span className="text-zinc-300">{itemInStock?.type || itemInStock?.item || 'Item'}</span> ({itemInStock?.color})</span>
                               <span>Req: <span className="font-mono text-zinc-300">{requiredAmount.toFixed(1)}</span></span>
                               <span>Avail: <span className="font-mono text-zinc-300">{available.toFixed(1)}</span></span>
                             </span>
@@ -244,15 +245,105 @@ export default function OrdersPage() {
               </div>
             )}
 
-            <div><label className="label">Rate per Metre (₹)</label><input name="rate" className="input" type="number" placeholder="85" /></div>
-            <div><label className="label">Deadline</label><input name="deadline" className="input" type="date" required /></div>
-            <div className="col-span-2"><label className="label">Notes</label><textarea className="input" rows={2} /></div>
+            <div><label className="label">Rate per Metre (₹)</label><input name="rate" className="input" type="number" defaultValue="85" placeholder="85" /></div>
+            <div>
+              <label className="label">Deadline <span className="text-red-400">*</span></label>
+              <input name="deadline" className="input" type="date" required defaultValue={new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]} />
+            </div>
+            <div className="col-span-2"><label className="label">Notes</label><textarea name="notes" className="input" rows={2} placeholder="Export quality finishing requested..." /></div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <button type="button" className="btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={createOrderMutation.isPending}>Create Order</button>
+            <button type="submit" className="btn-primary" disabled={createOrderMutation.isPending}>
+              {createOrderMutation.isPending ? 'Saving...' : 'Create Order'}
+            </button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── Modal: Order Status View & Details ── */}
+      <Modal open={!!selectedOrder} onClose={() => setSelectedOrder(null)} title={`Order Details: ${selectedOrder?.orderNumber}`} size="lg">
+        {selectedOrder && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="bg-zinc-800/50 p-3 rounded-xl">
+                <span className="text-zinc-500">Buyer</span>
+                <p className="font-semibold text-zinc-200 mt-0.5">{selectedOrder.customer?.name || 'Customer'}</p>
+              </div>
+              <div className="bg-zinc-800/50 p-3 rounded-xl">
+                <span className="text-zinc-500">Fabric & Colour</span>
+                <p className="font-semibold text-zinc-200 mt-0.5">{selectedOrder.fabric} · {selectedOrder.color}</p>
+              </div>
+              <div className="bg-zinc-800/50 p-3 rounded-xl">
+                <span className="text-zinc-500">Quantity</span>
+                <p className="font-semibold text-zinc-200 mt-0.5">{selectedOrder.quantity?.toLocaleString()} m</p>
+              </div>
+              <div className="bg-zinc-800/50 p-3 rounded-xl">
+                <span className="text-zinc-500">Order Value</span>
+                <p className="font-bold text-emerald-400 mt-0.5">{formatCurrencyFull((selectedOrder.quantity || 0) * (selectedOrder.rate || 85))}</p>
+              </div>
+            </div>
+
+            {/* Production Progress Bar */}
+            <div className="p-4 bg-zinc-900/60 rounded-xl border border-zinc-800/60 space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-400 font-semibold">Production Status & Progress</span>
+                <span className="font-mono text-primary-400 font-bold">{selectedOrder.progress}% completed</span>
+              </div>
+              <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary-500 to-emerald-400 rounded-full transition-all duration-500"
+                  style={{ width: `${selectedOrder.progress}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-2xs text-zinc-500 pt-1">
+                <span>Deadline: {formatDate(selectedOrder.deadline)}</span>
+                <Badge status={selectedOrder.status} />
+              </div>
+            </div>
+
+            {/* Status Update Pipeline */}
+            <div>
+              <label className="label">Update Order Status in Database</label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-1">
+                {[
+                  { key: 'CONFIRMED', pct: 0 },
+                  { key: 'IN_PRODUCTION', pct: 40 },
+                  { key: 'QUALITY_CHECK', pct: 75 },
+                  { key: 'READY_TO_SHIP', pct: 90 },
+                  { key: 'DISPATCHED', pct: 100 }
+                ].map(({ key, pct }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await updateOrderMutation.mutateAsync({
+                          id: selectedOrder.id,
+                          data: { status: key, progress: pct }
+                        })
+                        setSelectedOrder(prev => ({ ...prev, status: key, progress: pct }))
+                      } catch (err) {
+                        alert('Failed to update status: ' + (err?.message || err))
+                      }
+                    }}
+                    className={`btn-sm text-xs rounded-xl border transition-all ${
+                      selectedOrder.status === key
+                        ? 'bg-primary-500/20 border-primary-500 text-primary-300 font-bold ring-1 ring-primary-500/50'
+                        : 'bg-zinc-800/40 border-zinc-700/60 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    {key.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-zinc-800/60">
+              <button className="btn-secondary" onClick={() => setSelectedOrder(null)}>Close</button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

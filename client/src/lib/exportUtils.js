@@ -106,3 +106,28 @@ export async function exportExcel({ filename, sheetName = 'Sheet1', columns, row
   XLSX.utils.book_append_sheet(wb, ws, sheetName)
   XLSX.writeFile(wb, `${filename || sheetName}.xlsx`)
 }
+
+// ─── CSV ────────────────────────────────────────────────────────────────────
+
+export function exportCSV({ filename, columns, rows }) {
+  const escapeCSV = (val) => {
+    const str = String(val ?? '')
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`
+    }
+    return str
+  }
+  const csvContent = [
+    columns.map(escapeCSV).join(','),
+    ...rows.map(row => row.map(escapeCSV).join(','))
+  ].join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', `${filename || 'export'}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}

@@ -11,6 +11,7 @@ import {
 import { PageHeader }  from '../../components/ui/PageHeader'
 import { useAuth }     from '../../context/AuthContext'
 import { formatCurrencyFull, cn } from '../../lib/utils'
+import { exportPDF } from '../../lib/exportUtils'
 import QRCode from 'react-qr-code'
 
 const ATTENDANCE_LABELS = {
@@ -106,31 +107,25 @@ function WageCard({ worker }) {
   const otPay   = worker.overtimeHrs * otRate
   const net     = basic + halfPay + otPay - worker.deductions
 
-  const handleDownloadSlip = () => {
-    const csvRows = [
-      ['Textile ERP - Pay Slip'],
-      ['Worker Name', worker.name],
-      ['Worker ID', worker.id],
-      ['Department', worker.dept],
-      ['Role', worker.role],
-      [''],
-      ['Description', 'Amount (INR)'],
-      [`Basic pay (${worker.daysPresent} days × ${worker.wage})`, basic],
-      [`Half days (${worker.halfDays} × ${worker.wage/2})`, halfPay],
-      [`Overtime (${worker.overtimeHrs} hrs × ${otRate}/hr)`, otPay],
-      ['Deductions', `-${worker.deductions}`],
-      [''],
-      ['Net Pay', net]
-    ];
-    
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `PaySlip_${worker.id}_Oct2026.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadSlip = async () => {
+    await exportPDF({
+      title: 'Pay Slip',
+      subtitle: `${worker.name} — October 2026`,
+      columns: ['Description', 'Amount (INR)'],
+      rows: [
+        ['Worker ID', worker.id],
+        ['Department', worker.dept],
+        ['Role', worker.role],
+        ['', ''],
+        [`Basic pay (${worker.daysPresent} days × ${worker.wage})`, basic.toString()],
+        [`Half days (${worker.halfDays} × ${worker.wage/2})`, halfPay.toString()],
+        [`Overtime (${worker.overtimeHrs} hrs × ${otRate}/hr)`, otPay.toString()],
+        ['Deductions', `-${worker.deductions}`],
+        ['', ''],
+        ['NET PAY', net.toString()]
+      ],
+      filename: `PaySlip_${worker.id}_Oct2026`
+    });
   };
 
   return (
@@ -261,8 +256,6 @@ export default function MyDashboard() {
             <div className="ml-auto bg-white p-2 rounded-xl">
               <QRCode value={profile.id} size={70} />
             </div>
-          </div>
-
             {/* Today's status chip */}
             <div className={cn(
               'shrink-0 px-5 py-3 rounded-2xl border text-center',

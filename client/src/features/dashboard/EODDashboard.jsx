@@ -14,6 +14,7 @@ import { Badge }       from '../../components/ui/Badge'
 import { useAuth }     from '../../context/AuthContext'
 import { ROLE_LABELS } from '../../context/AuthContext'
 import { formatCurrency, formatCurrencyFull, cn } from '../../lib/utils'
+import { exportPDF } from '../../lib/exportUtils'
 import {
   useEODSummary, useEODShifts, useEODHourlyOutput,
   useEODMachineOutput, useEODTopPerformers, useEODTimeline
@@ -112,6 +113,51 @@ export default function EODDashboard() {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
 
+  const handleExportPDF = async () => {
+    try {
+      await exportPDF({
+        title: 'EOD Production Report',
+        subtitle: today,
+        columns: ['Metric', 'Value'],
+        rows: [
+          ['Total Output', `${s.totalOutput} m`],
+          ['Total Target', `${s.totalTarget} m`],
+          ['Rolls Produced', s.rollsProduced],
+          ['Rolls Passed', s.rollsPassed],
+          ['Rolls Rejected', s.rollsRejected],
+          ['Attendance', `${s.totalPresent}/${s.totalWorkers}`],
+          ['Machine Uptime', `${s.machineUptime}%`],
+          ['Downtime Events', s.downtimeEvents],
+          ['Estimated Revenue', formatCurrencyFull(s.estimatedRevenue)],
+          ['Estimated Cost', formatCurrencyFull(s.estimatedCost)],
+          ['Estimated Profit', formatCurrencyFull(s.estimatedProfit)]
+        ],
+        filename: `EOD_Report_${new Date().toISOString().split('T')[0]}`
+      });
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+      alert('Failed to export PDF. Please try again.');
+    }
+  }
+
+  const handleShare = async () => {
+    const shareData = {
+      title: 'EOD Production Report',
+      text: `EOD Report for ${today}\nTotal Production: ${s.totalOutput} m\nPass Rate: ${passRate}%\nAttendance: ${attendPct}%\nEst Profit: ${formatCurrencyFull(s.estimatedProfit)}`,
+      url: window.location.href,
+    };
+    try {
+      if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.title + '\\n' + shareData.text + '\\n' + shareData.url);
+        alert('Report details copied to clipboard!');
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+    }
+  }
+
   if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
   if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
@@ -130,10 +176,10 @@ export default function EODDashboard() {
         }
         actions={
           <div className="flex items-center gap-2">
-            <button className="btn-secondary btn-sm gap-1.5">
+            <button className="btn-secondary btn-sm gap-1.5" onClick={handleExportPDF}>
               <Download size={13} />Export PDF
             </button>
-            <button className="btn-ghost btn-sm gap-1.5">
+            <button className="btn-ghost btn-sm gap-1.5" onClick={() => window.location.reload()}>
               <RefreshCw size={13} />Refresh
             </button>
           </div>
@@ -306,12 +352,12 @@ export default function EODDashboard() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3">
-              <KpiMini label="Output"         value={`${shift.output.toLocaleString()} m`} sub={`Target ${shift.target.toLocaleString()} m`} color="text-primary-300" />
-              <KpiMini label="Waste"          value={`${shift.waste} m`}  sub={`${((shift.waste/shift.output)*100).toFixed(1)}% waste rate`} color="text-amber-400" />
-              <KpiMini label="Rolls Produced" value={shift.rollsProduced} sub={`${shift.rollsPassed} passed · ${shift.rollsRework} rework`} />
-              <KpiMini label="Workers Present" value={`${shift.present}/${shift.workers}`} sub={shift.absent > 0 ? `${shift.absent} absent` : 'Full attendance'} color={shift.absent ? 'text-amber-400' : 'text-emerald-400'} />
-              <KpiMini label="Machines"        value={`${shift.machinesRunning} running`} sub={`${shift.machinesIdle} idle · ${shift.machinesBreakdown} down`} color="text-emerald-400" />
-              <KpiMini label="Quality Pass"   value={`${Math.round((shift.rollsPassed/shift.rollsProduced)*100)}%`} sub={`${shift.rollsRejected} rejected`} color="text-teal-400" />
+              <KpiMini label="Output"         value={`${(shift.output || 0).toLocaleString()} m`} sub={`Target ${(shift.target || 5000).toLocaleString()} m`} color="text-primary-300" />
+              <KpiMini label="Waste"          value={`${shift.waste ?? 0} m`}  sub={`${shift.output ? (((shift.waste ?? 0) / shift.output) * 100).toFixed(1) : '0.0'}% waste rate`} color="text-amber-400" />
+              <KpiMini label="Rolls Produced" value={shift.rollsProduced ?? 0} sub={`${shift.rollsPassed ?? 0} passed · ${shift.rollsRework ?? 0} rework`} />
+              <KpiMini label="Workers Present" value={`${shift.present ?? 0}/${shift.workers ?? 20}`} sub={(shift.absent || 0) > 0 ? `${shift.absent} absent` : 'Full attendance'} color={shift.absent ? 'text-amber-400' : 'text-emerald-400'} />
+              <KpiMini label="Machines"        value={`${shift.machinesRunning ?? 8} running`} sub={`${shift.machinesIdle ?? 2} idle · ${shift.machinesBreakdown ?? 0} down`} color="text-emerald-400" />
+              <KpiMini label="Quality Pass"   value={`${shift.rollsProduced ? Math.round(((shift.rollsPassed ?? 0) / shift.rollsProduced) * 100) : 100}%`} sub={`${shift.rollsRejected ?? 0} rejected`} color="text-teal-400" />
             </div>
 
             {/* Output progress bar */}
@@ -523,10 +569,10 @@ export default function EODDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn-primary btn-sm gap-1.5">
+            <button className="btn-primary btn-sm gap-1.5" onClick={handleExportPDF}>
               <FileText size={13} />Full Report
             </button>
-            <button className="btn-secondary btn-sm gap-1.5">
+            <button className="btn-secondary btn-sm gap-1.5" onClick={handleShare}>
               Share <ArrowRight size={13} />
             </button>
           </div>

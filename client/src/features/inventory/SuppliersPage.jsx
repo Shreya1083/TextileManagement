@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Plus, Search, Building2, Phone, MapPin,
   FileText, Mail, Globe, Hash, CheckCircle,
@@ -7,7 +7,7 @@ import {
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { cn } from '../../lib/utils'
-import { useSuppliers, useCreateSupplier } from '../../hooks/useAPI'
+import { useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier } from '../../hooks/useAPI'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
@@ -42,9 +42,9 @@ const BLANK = {
 /* ── validation ──────────────────────────────────────────────────────── */
 function validate(form) {
   const errors = {}
-  if (!form.name.trim())    errors.name  = 'Company name is required'
-  if (!form.city.trim())    errors.city  = 'City is required'
-  if (!form.phone.trim())   errors.phone = 'Contact number is required'
+  if (!form.name?.trim())    errors.name  = 'Company name is required'
+  if (!form.city?.trim())    errors.city  = 'City is required'
+  if (!form.phone?.trim())   errors.phone = 'Contact number is required'
   if (form.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(form.gstin))
     errors.gstin = 'Invalid GSTIN format (e.g. 27AABCA1234B1Z5)'
   return errors
@@ -57,7 +57,13 @@ function SupplierModal({ open, onClose, onSave, initial, editMode }) {
   const [saved,  setSaved]  = useState(false)
 
   // Sync when initial changes (editing different rows)
-  const handleOpen = () => { setForm(initial || BLANK); setErrors({}); setSaved(false) }
+  useEffect(() => {
+    if (open) {
+      setForm(initial || BLANK)
+      setErrors({})
+      setSaved(false)
+    }
+  }, [open, initial])
 
   const set = (k, v) => {
     setForm(p => ({ ...p, [k]: v }))
@@ -294,6 +300,8 @@ export default function SuppliersPage() {
   const { data: suppliersData, isLoading, error } = useSuppliers()
   const suppliers = suppliersData?.data || []
   const createSupplierMutation = useCreateSupplier()
+  const updateSupplierMutation = useUpdateSupplier()
+  const deleteSupplierMutation = useDeleteSupplier()
 
   const [search,      setSearch]      = useState('')
   const [showAdd,     setShowAdd]     = useState(false)
@@ -310,7 +318,7 @@ export default function SuppliersPage() {
   const handleAdd = async (form) => {
     try {
       await createSupplierMutation.mutateAsync({
-        name: form.companyName,
+        name: form.name || form.companyName,
         contactPerson: form.contactPerson,
         city: form.city,
         state: form.state,
@@ -323,21 +331,51 @@ export default function SuppliersPage() {
         yarnTypes: form.yarnTypes,
         leadDays: form.leadDays,
         paymentTerms: form.paymentTerms,
+        notes: form.notes,
         activePos: 0,
       })
     } catch (err) {
-      console.error(err)
+      console.error('Failed to add supplier:', err)
+      alert('Failed to add supplier: ' + (err?.message || err))
     }
   }
 
-  const handleEdit = (form) => {
-    // API logic for Edit
-    setEditTarget(null)
+  const handleEdit = async (form) => {
+    if (!editTarget) return
+    try {
+      await updateSupplierMutation.mutateAsync({
+        id: editTarget.id,
+        name: form.name || form.companyName,
+        contactPerson: form.contactPerson,
+        city: form.city,
+        state: form.state,
+        phone: form.phone,
+        altPhone: form.altPhone,
+        email: form.email,
+        gstin: form.gstin,
+        pan: form.pan,
+        website: form.website,
+        yarnTypes: form.yarnTypes,
+        leadDays: form.leadDays,
+        paymentTerms: form.paymentTerms,
+        notes: form.notes,
+      })
+      setEditTarget(null)
+    } catch (err) {
+      console.error('Failed to update supplier:', err)
+      alert('Failed to update supplier: ' + (err?.message || err))
+    }
   }
 
-  const handleDelete = () => {
-    // API logic for Delete
-    setDeleteTarget(null)
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await deleteSupplierMutation.mutateAsync(deleteTarget.id)
+      setDeleteTarget(null)
+    } catch (err) {
+      console.error('Failed to delete supplier:', err)
+      alert('Failed to delete supplier: ' + (err?.message || err))
+    }
   }
 
   if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
@@ -401,17 +439,17 @@ export default function SuppliersPage() {
                       </p>
                     )}
                   </div>
-                  {/* Actions — reveal on hover */}
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  {/* Actions — always visible */}
+                  <div className="flex gap-1 shrink-0">
                     <button
-                      className="icon-btn !w-7 !h-7 !rounded-lg"
+                      className="icon-btn !w-7 !h-7 !rounded-lg hover:!bg-primary-500/20 text-zinc-400 hover:text-primary-300 transition-colors"
                       title="Edit supplier"
                       onClick={() => setEditTarget(s)}
                     >
                       <Edit2 size={12} />
                     </button>
                     <button
-                      className="icon-btn !w-7 !h-7 !rounded-lg hover:!bg-red-500/20 hover:!text-red-400"
+                      className="icon-btn !w-7 !h-7 !rounded-lg hover:!bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"
                       title="Remove supplier"
                       onClick={() => setDeleteTarget(s)}
                     >
@@ -463,12 +501,23 @@ export default function SuppliersPage() {
                   )}
                 </div>
 
-                {/* ID pill */}
+                {/* Footer with Edit / Delete buttons */}
                 <div className="mt-3 pt-2.5 border-t border-zinc-800/40 flex justify-between items-center">
-                  <span className="font-mono text-2xs text-zinc-700">{s.id}</span>
-                  {s.notes && (
-                    <span className="text-2xs text-zinc-600 italic truncate max-w-[140px]">{s.notes}</span>
-                  )}
+                  <span className="font-mono text-2xs text-zinc-600 truncate max-w-[100px]">{s.id}</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      className="btn-secondary btn-xs text-xs px-2 py-1 gap-1 text-zinc-300 hover:text-white"
+                      onClick={() => setEditTarget(s)}
+                    >
+                      <Edit2 size={11} /> Edit
+                    </button>
+                    <button
+                      className="btn-ghost btn-xs text-xs px-2 py-1 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                      onClick={() => setDeleteTarget(s)}
+                    >
+                      <Trash2 size={11} /> Remove
+                    </button>
+                  </div>
                 </div>
               </div>
             )

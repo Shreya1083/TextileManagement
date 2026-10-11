@@ -21,11 +21,26 @@ router.post('/:id/start', async (req, res) => {
   try {
     const { id } = req.params;
     const { orderId, operatorId } = req.body;
-    await prisma.machine.update({
-      where: { id },
-      data: { status: 'RUNNING' }
+    
+    // Find machine by ID or machineId
+    const machine = await prisma.machine.findFirst({
+      where: { OR: [{ id }, { machineId: id }] }
     });
-    res.json({ success: true, message: `Machine ${id} started` });
+
+    if (!machine) {
+      return res.status(404).json({ success: false, message: `Machine ${id} not found` });
+    }
+
+    const updated = await prisma.machine.update({
+      where: { id: machine.id },
+      data: {
+        status: 'RUNNING',
+        order: orderId || machine.order || null,
+        operator: operatorId || machine.operator || null,
+      }
+    });
+
+    res.json({ success: true, message: `Machine ${machine.machineId} assigned and started`, data: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -35,11 +50,42 @@ router.post('/:id/stop', async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    await prisma.machine.update({
-      where: { id },
-      data: { status: 'IDLE' } // or BREAKDOWN based on reason
+
+    const machine = await prisma.machine.findFirst({
+      where: { OR: [{ id }, { machineId: id }] }
     });
-    res.json({ success: true, message: `Machine ${id} stopped` });
+
+    if (!machine) {
+      return res.status(404).json({ success: false, message: `Machine ${id} not found` });
+    }
+
+    const newStatus = (reason && reason.toLowerCase().includes('breakdown')) ? 'BREAKDOWN' : 'IDLE';
+
+    const updated = await prisma.machine.update({
+      where: { id: machine.id },
+      data: {
+        status: newStatus,
+        order: newStatus === 'IDLE' ? null : machine.order,
+      }
+    });
+
+    // If breakdown, log a downtime event
+    if (newStatus === 'BREAKDOWN') {
+      try {
+        await prisma.downtime.create({
+          data: {
+            machineId: machine.machineId,
+            reason: reason || 'Machine Breakdown',
+            status: 'OPEN',
+            start: new Date(),
+          }
+        });
+      } catch (e) {
+        console.error('Failed to log downtime:', e);
+      }
+    }
+
+    res.json({ success: true, message: `Machine ${machine.machineId} marked as ${newStatus}`, data: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

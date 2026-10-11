@@ -1,13 +1,15 @@
+import { useState } from 'react'
 import { PageHeader }         from '../../components/ui/PageHeader'
 import { ExportMenu }         from '../../components/ui/ExportMenu'
 import { formatCurrencyFull } from '../../lib/utils'
 import { exportPDF, exportExcel } from '../../lib/exportUtils'
-import { useWages } from '../../hooks/useAPI'
+import { useWages, useGeneratePayroll } from '../../hooks/useAPI'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { ErrorMessage } from '../../components/ui/ErrorMessage'
+import { Download, CheckCircle2 } from 'lucide-react'
 
 const TITLE    = 'Wage Sheet'
-const SUBTITLE = 'September 2026 — Monthly payroll'
+const SUBTITLE = 'October 2026 — Monthly payroll'
 const COLUMNS  = ['ID', 'Name', 'Role', 'Daily Rate (₹)', 'Days Present', 'Gross (₹)', 'Deductions (₹)', 'Net Pay (₹)']
 
 function buildRows(workers) {
@@ -28,7 +30,9 @@ function buildRows(workers) {
 }
 
 export default function WagesPage() {
-  const { data: wagesData, isLoading, error } = useWages('09', '2026')
+  const [successMsg, setSuccessMsg] = useState('')
+  const { data: wagesData, isLoading, error, refetch } = useWages('10', '2026')
+  const generatePayrollMutation = useGeneratePayroll()
   const wages = wagesData?.data || []
 
   // Map to workersWithAttendance
@@ -46,11 +50,42 @@ export default function WagesPage() {
 
   const handleExportPDF = () => exportPDF({
     title: TITLE, subtitle: SUBTITLE, columns: COLUMNS, rows: buildRows(workersWithAttendance),
-    filename: 'WageSheet_Sep2026',
+    filename: 'WageSheet_Oct2026',
   })
   const handleExportExcel = () => exportExcel({
-    filename: 'WageSheet_Sep2026', sheetName: 'Wages', columns: COLUMNS, rows: buildRows(workersWithAttendance),
+    filename: 'WageSheet_Oct2026', sheetName: 'Wages', columns: COLUMNS, rows: buildRows(workersWithAttendance),
   })
+
+  const handleDownloadSlip = (w) => {
+    const gross = Math.round(w.wage * w.present)
+    exportPDF({
+      title: 'Everest Textile Mills — Pay Slip',
+      subtitle: `${w.name} (${w.workerId}) — October 2026`,
+      columns: ['Component', 'Details'],
+      rows: [
+        ['Worker ID', w.workerId],
+        ['Name', w.name],
+        ['Role / Department', w.role],
+        ['Wage Rate', `₹${w.wage}/day`],
+        ['Days Present', `${w.present} days`],
+        ['Gross Pay', `₹${gross.toLocaleString('en-IN')}`],
+        ['Deductions / PF / ESI', '₹0'],
+        ['NET PAYABLE', `₹${w.net.toLocaleString('en-IN')}`]
+      ],
+      filename: `PaySlip_${w.workerId}_Oct2026`
+    })
+  }
+
+  const handleGeneratePayroll = async () => {
+    try {
+      const res = await generatePayrollMutation.mutateAsync({ month: '10', year: '2026' })
+      await refetch()
+      setSuccessMsg(res?.message || 'Payroll generated successfully and slips ready!')
+      setTimeout(() => setSuccessMsg(''), 6000)
+    } catch (err) {
+      alert(`Failed to generate payroll: ${err.message}`)
+    }
+  }
 
   if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
   if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
@@ -61,10 +96,24 @@ export default function WagesPage() {
         actions={
           <div className="flex gap-2">
             <ExportMenu onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
-            <button className="btn-primary btn-sm">Generate Payroll</button>
+            <button 
+              className="btn-primary btn-sm flex items-center gap-1.5" 
+              onClick={handleGeneratePayroll}
+              disabled={generatePayrollMutation.isPending}
+            >
+              {generatePayrollMutation.isPending ? 'Generating...' : '⚡ Generate Payroll'}
+            </button>
           </div>
         }
       />
+
+      {successMsg && (
+        <div className="flex items-center gap-2 p-3 bg-emerald-500/15 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs">
+          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-4">
         {[
           { label:'Total Wages', value:formatCurrencyFull(total), color:'text-zinc-50',     accent:'bg-gradient-to-r from-primary-500 to-violet-500' },
@@ -80,7 +129,7 @@ export default function WagesPage() {
       </div>
       <div className="table-wrap">
         <table className="table-base">
-          <thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Daily Rate</th><th>Days</th><th>Gross</th><th>Deductions</th><th>Net Pay</th></tr></thead>
+          <thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Daily Rate</th><th>Days</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th className="text-right">Pay Slip</th></tr></thead>
           <tbody>
             {workersWithAttendance.map(w => (
               <tr key={w.workerId}>
@@ -92,11 +141,21 @@ export default function WagesPage() {
                 <td className="font-mono text-xs">{formatCurrencyFull(w.wage * w.present)}</td>
                 <td className="text-zinc-600 text-xs">₹0</td>
                 <td className="font-bold text-zinc-100 font-mono">{formatCurrencyFull(w.net)}</td>
+                <td className="text-right">
+                  <button 
+                    onClick={() => handleDownloadSlip(w)}
+                    className="btn-secondary !py-1 !px-2.5 text-2xs gap-1 inline-flex items-center hover:text-primary-300"
+                    title={`Download pay slip for ${w.name}`}
+                  >
+                    <Download size={11} /> Slip
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div className="px-5 py-3.5 border-t border-zinc-800/80 flex justify-end">
+        <div className="px-5 py-3.5 border-t border-zinc-800/80 flex justify-between items-center">
+          <span className="text-xs text-zinc-500">Showing {workersWithAttendance.length} workers</span>
           <p className="text-sm font-bold text-zinc-200">Total: <span className="text-primary-400 font-mono ml-1">{formatCurrencyFull(total)}</span></p>
         </div>
       </div>

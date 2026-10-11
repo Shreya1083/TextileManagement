@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { Plus, Wrench, ChevronRight } from 'lucide-react'
+import { Plus, Wrench, ChevronRight, CheckCircle2, AlertOctagon } from 'lucide-react'
 import { Badge }      from '../../components/ui/Badge'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { ErrorMessage } from '../../components/ui/ErrorMessage'
 import { useAuth }    from '../../context/AuthContext'
-import { useProductionMachines } from '../../hooks/useAPI'
+import { useProductionMachines, useStartMachine, useStopMachine, useOrders, useWorkers } from '../../hooks/useAPI'
 import { cn } from '../../lib/utils'
 
 const STATUS_DOT = {
@@ -23,6 +23,15 @@ export default function MachineBoard() {
   
   const { data: machinesData, isLoading, error } = useProductionMachines()
   const allMachines = machinesData?.data || []
+
+  const { data: ordersData } = useOrders()
+  const orders = ordersData?.data || []
+
+  const { data: workersData } = useWorkers()
+  const workers = workersData?.data || []
+
+  const startMachine = useStartMachine()
+  const stopMachine = useStopMachine()
   
   const stages   = ['ALL', ...new Set(allMachines.map(m => m.stage))]
   const filtered = stageFilter === 'ALL' ? allMachines : allMachines.filter(m => m.stage === stageFilter)
@@ -37,7 +46,7 @@ export default function MachineBoard() {
         subtitle={`Supervised by ${user?.name} · Machine status and work assignments`}
         actions={
           <>
-            <button className="btn-secondary btn-sm"><Wrench size={13} />Manage</button>
+            <button className="btn-secondary btn-sm" onClick={() => window.location.reload()}><Wrench size={13} />Refresh</button>
             <button className="btn-primary btn-sm" onClick={() => setShowAssign(true)}><Plus size={13} />Assign</button>
           </>
         }
@@ -81,9 +90,9 @@ export default function MachineBoard() {
         </table>
       </div>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.name} description={selected?.id}>
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.name} description={selected?.machineId || selected?.id}>
         {selected && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2.5 text-xs">
               {[['Stage',selected.stage],['Operator',selected.operator??'Unassigned'],['Order',selected.order??'—'],['Output',selected.output>0?`${selected.output} m`:'—']].map(([k,v]) => (
                 <div key={k} className="bg-zinc-800/60 rounded-xl p-3">
@@ -96,10 +105,54 @@ export default function MachineBoard() {
               <Badge status={selected.status} />
             </div>
             {selected.status === 'BREAKDOWN' && (
-              <button className="btn-primary w-full">Mark Resolved</button>
+              <button
+                className="btn-primary w-full gap-2"
+                disabled={startMachine.isPending}
+                onClick={async () => {
+                  try {
+                    await startMachine.mutateAsync({
+                      id: selected.machineId || selected.id,
+                      orderId: selected.order,
+                      operatorId: selected.operator
+                    })
+                    setSelected(null)
+                  } catch (err) {
+                    alert('Failed to resolve machine: ' + (err?.message || err))
+                  }
+                }}
+              >
+                <CheckCircle2 size={15} />Mark Resolved (Resume)
+              </button>
             )}
             {selected.status === 'RUNNING' && (
-              <button className="btn-danger w-full">Log Breakdown</button>
+              <button
+                className="btn-danger w-full gap-2"
+                disabled={stopMachine.isPending}
+                onClick={async () => {
+                  try {
+                    await stopMachine.mutateAsync({
+                      id: selected.machineId || selected.id,
+                      reason: 'Emergency Breakdown reported by supervisor'
+                    })
+                    setSelected(null)
+                  } catch (err) {
+                    alert('Failed to log breakdown: ' + (err?.message || err))
+                  }
+                }}
+              >
+                <AlertOctagon size={15} />Log Breakdown
+              </button>
+            )}
+            {selected.status === 'IDLE' && (
+              <button
+                className="btn-secondary w-full gap-2"
+                onClick={() => {
+                  setSelected(null)
+                  setShowAssign(true)
+                }}
+              >
+                <Plus size={15} />Assign Work to this Machine
+              </button>
             )}
           </div>
         )}
@@ -111,40 +164,81 @@ export default function MachineBoard() {
           const fd = new FormData(e.target)
           const data = Object.fromEntries(fd.entries())
           try {
-            await fetch(`http://localhost:5000/api/data/machines/${data.machineId}/start`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ orderId: data.orderId, operatorId: data.operatorId })
+            await startMachine.mutateAsync({
+              id: data.machineId,
+              orderId: data.orderId,
+              operatorId: data.operatorId
             })
             setShowAssign(false)
-            window.location.reload()
           } catch(err) {
-            console.error(err)
+            console.error('Failed to assign machine:', err)
+            alert('Failed to assign machine: ' + (err?.message || err))
           }
         }}>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Order Number</label>
-              <input name="orderId" className="input" placeholder="e.g. ORD-2028" required />
-            </div>
-            <div><label className="label">Machine</label>
-              <select name="machineId" className="input" required>
-                {allMachines.filter(m => m.status === 'IDLE').map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.machineId})</option>
+            <div>
+              <label className="label">Machine</label>
+              <select name="machineId" className="input" required defaultValue="">
+                <option value="" disabled>Select machine...</option>
+                {allMachines.map(m => (
+                  <option key={m.id} value={m.machineId || m.id}>
+                    {m.name} ({m.machineId}) — {m.stage} [{m.status}]
+                  </option>
                 ))}
               </select>
             </div>
-            <div><label className="label">Operator ID</label>
-              <input name="operatorId" className="input" placeholder="e.g. W-001" required />
+            <div>
+              <label className="label">Order Number</label>
+              {orders.length > 0 ? (
+                <select name="orderId" className="input" required defaultValue="">
+                  <option value="" disabled>Select order...</option>
+                  {orders.map(o => (
+                    <option key={o.id} value={o.orderNumber || o.id}>
+                      {o.orderNumber || o.id} — {o.customer?.name || o.fabric || 'Textile Order'} ({o.quantity || 0} m)
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input name="orderId" className="input" placeholder="e.g. ORD-2028" required />
+              )}
             </div>
-            <div><label className="label">Planned Qty (m)</label><input className="input" type="number" /></div>
-            <div><label className="label">Start Date</label><input className="input" type="date" required defaultValue={new Date().toISOString().split('T')[0]} /></div>
-            <div><label className="label">Shift</label>
-              <select className="input"><option>Morning</option><option>Afternoon</option><option>Night</option></select>
+            <div>
+              <label className="label">Operator</label>
+              {workers.length > 0 ? (
+                <select name="operatorId" className="input" required defaultValue="">
+                  <option value="" disabled>Select operator...</option>
+                  {workers.map(w => (
+                    <option key={w.id} value={w.name}>
+                      {w.name} ({w.workerId}) — {w.dept || w.role}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input name="operatorId" className="input" placeholder="e.g. Rajesh Kumar" required />
+              )}
+            </div>
+            <div>
+              <label className="label">Planned Qty (m)</label>
+              <input name="plannedQty" className="input" type="number" defaultValue="1500" placeholder="e.g. 1500" />
+            </div>
+            <div>
+              <label className="label">Start Date</label>
+              <input name="startDate" className="input" type="date" required defaultValue={new Date().toISOString().split('T')[0]} />
+            </div>
+            <div>
+              <label className="label">Shift</label>
+              <select name="shift" className="input">
+                <option value="Morning">Morning (06:00 AM - 02:00 PM)</option>
+                <option value="Afternoon">Afternoon (02:00 PM - 10:00 PM)</option>
+                <option value="Night">Night (10:00 PM - 06:00 AM)</option>
+              </select>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <button type="button" className="btn-secondary" onClick={() => setShowAssign(false)}>Cancel</button>
-            <button type="submit" className="btn-primary">Assign Machine</button>
+            <button type="submit" className="btn-primary" disabled={startMachine.isPending}>
+              {startMachine.isPending ? 'Assigning...' : 'Assign Machine'}
+            </button>
           </div>
         </form>
       </Modal>

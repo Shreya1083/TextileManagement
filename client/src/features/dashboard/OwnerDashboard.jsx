@@ -66,7 +66,11 @@ export default function OwnerDashboard() {
   const stats = statsData?.data || {}
   const revenueChartData = revenueData?.data || []
   const productionChartData = productionData?.data || []
-  const qualityChartData = qualityData?.data || []
+  const rawQuality = qualityData?.data || {}
+  const qualityChartData = typeof rawQuality.passed === 'number' ? [
+    { name: 'Passed', value: rawQuality.passed, color: '#10b981' },
+    { name: 'Defective', value: rawQuality.rejected + rawQuality.rework, color: '#ef4444' }
+  ] : []
   const orders = ordersData?.data || []
   const alerts = alertsData?.data || []
   const machines = machinesData?.data || []
@@ -111,13 +115,17 @@ export default function OwnerDashboard() {
         <form onSubmit={async (e) => {
           e.preventDefault();
           const fd = new FormData(e.target);
-          await createNotification.mutateAsync({
-            type: 'announcement',
-            message: fd.get('message'),
-            severity: fd.get('severity'),
-            author: user?.name
-          });
-          setShowAnnounce(false);
+          try {
+            await createNotification.mutateAsync({
+              type: 'announcement',
+              message: fd.get('message'),
+              severity: fd.get('severity') || 'info',
+              author: user?.name || 'Owner'
+            });
+            setShowAnnounce(false);
+          } catch (err) {
+            alert('Failed to post announcement: ' + (err?.message || err));
+          }
         }}>
           <div className="space-y-4">
             <div>
@@ -134,7 +142,9 @@ export default function OwnerDashboard() {
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <button type="button" className="btn-secondary" onClick={() => setShowAnnounce(false)}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={createNotification.isPending}>Post Announcement</button>
+              <button type="submit" className="btn-primary" disabled={createNotification.isPending}>
+                {createNotification.isPending ? 'Posting...' : 'Post Announcement'}
+              </button>
             </div>
           </div>
         </form>
@@ -158,6 +168,26 @@ export default function OwnerDashboard() {
           </div>
         }
       />
+
+      {/* Latest announcement broadcast banner */}
+      {alerts.filter(a => a.type === 'announcement').slice(0, 1).map(ann => (
+        <div key={ann.id} className="p-4 rounded-2xl bg-gradient-to-r from-primary-950/60 to-zinc-900 border border-primary-500/30 flex items-center gap-3.5 shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-primary-500/20 text-primary-400 flex items-center justify-center shrink-0 text-base">
+            📢
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-2xs font-bold uppercase tracking-wider text-primary-400">Notice Board</span>
+              <span className="text-zinc-600 text-xs">·</span>
+              <span className="text-2xs text-zinc-500">By {ann.author || 'Management'}</span>
+            </div>
+            <p className="text-xs text-zinc-200 font-medium mt-0.5 leading-snug">{ann.message}</p>
+          </div>
+          <span className="text-2xs text-zinc-600 shrink-0">
+            {ann.createdAt ? new Date(ann.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+          </span>
+        </div>
+      ))}
 
       {/* ── Primary KPIs ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -395,13 +425,15 @@ export default function OwnerDashboard() {
             <ul className="flex-1 divide-y divide-zinc-800/40 overflow-y-auto scrollbar-thin">
               {alerts.map(a => (
                 <li key={a.id} className="flex gap-3 px-5 py-3.5 hover:bg-zinc-800/30 transition-colors cursor-pointer">
-                  <div className={`w-1.5 shrink-0 rounded-full self-stretch ${a.severity === 'danger' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                  <div className={`w-1.5 shrink-0 rounded-full self-stretch ${a.severity === 'danger' ? 'bg-red-500' : a.severity === 'info' ? 'bg-blue-500' : 'bg-amber-500'}`} />
                   <div className="min-w-0">
-                    <p className={`text-2xs font-bold uppercase tracking-wider ${a.severity === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
-                      {a.type.replace('-', ' ')}
+                    <p className={`text-2xs font-bold uppercase tracking-wider ${a.severity === 'danger' ? 'text-red-400' : a.severity === 'info' ? 'text-blue-400' : 'text-amber-400'}`}>
+                      {a.type?.replace('-', ' ')}
                     </p>
                     <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed">{a.message}</p>
-                    <p className="text-2xs text-zinc-600 mt-1">{a.time}</p>
+                    <p className="text-2xs text-zinc-600 mt-1">
+                      {a.time || (a.createdAt ? new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now')}
+                    </p>
                   </div>
                 </li>
               ))}

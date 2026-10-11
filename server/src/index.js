@@ -29,10 +29,10 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// Global rate limiting
+// Global rate limiting (disabled or set high for development to prevent blocking)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 100000, // high limit for development so live polling doesn't trigger 429
   message: 'Too many requests from this IP, please try again later.',
 })
 app.use('/api/', limiter)
