@@ -57,6 +57,7 @@ export const productionAPI = {
   updateDowntime: (id, data) => handleRes(apiClient.put(`/data/downtimes/${id}`, data)),
   getProductionEntries: (filters) => handleRes(apiClient.get('/data/production-entries', { params: filters })),
   createProductionEntry: (data) => handleRes(apiClient.post('/data/production-entries', data)),
+  updateMachine: (id, data) => handleRes(apiClient.put(`/data/machines/${id}`, data)),
   startMachine: (id, orderId, operatorId) => handleRes(apiClient.post(`/data/machines/${id}/start`, { orderId, operatorId })),
   stopMachine: (id, reason) => handleRes(apiClient.post(`/data/machines/${id}/stop`, { reason })),
 };
@@ -130,6 +131,7 @@ export const settingsAPI = {
   getUsers: () => handleRes(apiClient.get('/data/users')),
   createUser: (data) => handleRes(apiClient.post('/data/users', data)),
   updateUser: (id, data) => handleRes(apiClient.put(`/data/users/${id}`, data)),
+  deleteUser: (id) => handleRes(apiClient.delete(`/data/users/${id}`)),
   getMillSettings: () => handleRes(apiClient.get('/data/mill-settings')),
   createMillSetting: (data) => handleRes(apiClient.post('/data/mill-settings', data)),
   updateMillSetting: (id, data) => handleRes(apiClient.put(`/data/mill-settings/${id}`, data)),

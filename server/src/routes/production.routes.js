@@ -91,4 +91,70 @@ router.post('/:id/stop', async (req, res) => {
   }
 });
 
+// Full/Partial machine update supporting both UUID and machineId
+const handleUpdateMachine = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, operator, order, output, stage, name, reason } = req.body;
+
+    const machine = await prisma.machine.findFirst({
+      where: { OR: [{ id }, { machineId: id }] }
+    });
+
+    if (!machine) {
+      return res.status(404).json({ success: false, message: `Machine ${id} not found` });
+    }
+
+    const updateData = {};
+    if (status !== undefined) updateData.status = status;
+    if (operator !== undefined) updateData.operator = operator || null;
+    if (order !== undefined) updateData.order = order || null;
+    if (output !== undefined) updateData.output = Math.max(0, Number(output) || 0);
+    if (stage !== undefined) updateData.stage = stage;
+    if (name !== undefined) updateData.name = name;
+
+    const updated = await prisma.machine.update({
+      where: { id: machine.id },
+      data: updateData,
+    });
+
+    // If status became BREAKDOWN, log downtime
+    if (status === 'BREAKDOWN') {
+      try {
+        await prisma.downtime.create({
+          data: {
+            machineId: machine.machineId,
+            reason: reason || 'Breakdown reported from Floor Monitor',
+            status: 'OPEN',
+            start: new Date(),
+          }
+        });
+      } catch (e) {
+        console.error('Failed to log downtime on breakdown:', e);
+      }
+    } else if (machine.status === 'BREAKDOWN' && (status === 'RUNNING' || status === 'IDLE')) {
+      // Auto-resolve any open downtimes for this machine
+      try {
+        await prisma.downtime.updateMany({
+          where: { machineId: machine.machineId, status: 'OPEN' },
+          data: { status: 'RESOLVED', end: new Date() }
+        });
+      } catch (e) {
+        console.error('Failed to resolve downtimes:', e);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Machine ${updated.name || updated.machineId} status updated to ${updated.status}`,
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+router.put('/:id', handleUpdateMachine);
+router.patch('/:id', handleUpdateMachine);
+
 export default router;

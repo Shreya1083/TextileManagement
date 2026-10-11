@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { Plus, Package } from 'lucide-react'
+import { Plus, Package, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal }      from '../../components/ui/Modal'
 import { formatDate } from '../../lib/utils'
-
-
 
 import { useGateEntries, useCreateGateEntry, useSuppliers } from '../../hooks/useAPI'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
@@ -12,8 +10,9 @@ import { ErrorMessage } from '../../components/ui/ErrorMessage'
 
 export default function GateEntryPage() {
   const [showAdd, setShowAdd] = useState(false)
+  const [toast, setToast] = useState(null)
   
-  const { data: grnData, isLoading, error } = useGateEntries()
+  const { data: grnData, isLoading, error, refetch: refetchGRNs } = useGateEntries()
   const grns = grnData?.data || []
 
   const { data: suppliersData } = useSuppliers()
@@ -21,11 +20,30 @@ export default function GateEntryPage() {
 
   const createGateEntryMutation = useCreateGateEntry()
 
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }
+
   if (isLoading) return <div className="page-root"><LoadingSpinner /></div>
   if (error) return <div className="page-root"><ErrorMessage message={error.message} /></div>
 
   return (
     <div className="page-root">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-xl shadow-2xl border text-sm font-semibold flex items-center gap-2.5 animate-slide-in ${
+            toast.type === 'error'
+              ? 'bg-red-950/95 border-red-700 text-red-200'
+              : 'bg-emerald-950/95 border-emerald-600 text-emerald-200'
+          }`}
+        >
+          {toast.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       <PageHeader title="Gate Entry / GRN" subtitle="Goods Receipt Notes — yarn and material inward"
         actions={<button className="btn-primary btn-sm" onClick={() => setShowAdd(true)}><Plus size={14} />New GRN</button>}
       />
@@ -56,21 +74,26 @@ export default function GateEntryPage() {
           const fd = new FormData(e.target)
           const data = Object.fromEntries(fd.entries())
           try {
+            const grnId = `GRN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
+            const qtyNum = Number(data.qty) || 0
             await createGateEntryMutation.mutateAsync({
-              grnId: `GRN-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+              grnId,
               supplier: data.supplier,
               yarn: data.yarn,
-              colour: data.colour,
-              lotBatch: data.lotBatch,
-              qty: Number(data.qty),
-              bags: Number(data.bags),
-              challan: data.challan,
-              vehicle: data.vehicle,
-              notes: data.notes,
+              colour: data.colour || 'White',
+              lotBatch: data.lotBatch || `LOT-${Date.now().toString().slice(-4)}`,
+              qty: qtyNum,
+              bags: Number(data.bags) || 1,
+              challan: data.challan || `CH-${Math.floor(1000 + Math.random() * 9000)}`,
+              vehicle: data.vehicle || 'GJ-05-AB-1234',
+              notes: data.notes || '',
             })
+            await refetchGRNs()
+            showToast(`GRN ${grnId} created! Added +${qtyNum} kg to inventory stock.`)
             setShowAdd(false)
           } catch (err) {
             console.error('Failed to create Gate Entry', err)
+            showToast('Failed to create GRN: ' + (err?.message || err), 'error')
           }
         }}>
           <div className="grid grid-cols-2 gap-4">

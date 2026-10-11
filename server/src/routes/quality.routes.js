@@ -36,16 +36,17 @@ router.get('/defects', async (req, res) => {
 router.post('/:id/inspect', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, defects, remarks, inspectorId } = req.body;
+    const { status, defects, remarks, notes, inspectorId, inspector } = req.body;
     await prisma.roll.update({
       where: { id },
       data: {
         status,
-        inspector: inspectorId || 'System',
-        // In a real app we'd save defects and remarks to a related table
+        inspector: inspector || inspectorId || 'Quality Inspector',
+        defects: defects ? (Array.isArray(defects) ? defects.join(', ') : String(defects)) : null,
+        remarks: remarks || notes || null,
       }
     });
-    res.json({ success: true, message: `Roll ${id} inspected` });
+    res.json({ success: true, message: `Roll ${id} inspected successfully` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

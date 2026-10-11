@@ -60,9 +60,14 @@ export default function PnLPage() {
 
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Revenue (Sep)', value: formatCurrencyFull(last.revenue), color: 'text-blue-400',    accent: 'bg-gradient-to-r from-blue-500 to-cyan-500'     },
-          { label: 'Total Cost (Sep)', value: formatCurrencyFull(last.cost),    color: 'text-red-400',     accent: 'bg-gradient-to-r from-red-500 to-orange-500'     },
-          { label: 'Net Profit (Sep)', value: formatCurrencyFull(last.profit),  color: 'text-emerald-400', accent: 'bg-gradient-to-r from-emerald-500 to-teal-500'   },
+          { label: 'Revenue (Sep)', value: formatCurrencyFull(last.revenue), color: 'text-blue-400', accent: 'bg-gradient-to-r from-blue-500 to-cyan-500' },
+          { label: 'Total Cost (Sep)', value: formatCurrencyFull(last.cost), color: 'text-red-400', accent: 'bg-gradient-to-r from-red-500 to-orange-500' },
+          {
+            label: last.profit < 0 ? 'Net Loss (Sep)' : 'Net Profit (Sep)',
+            value: last.profit < 0 ? `-${formatCurrencyFull(Math.abs(last.profit))}` : formatCurrencyFull(last.profit),
+            color: last.profit < 0 ? 'text-red-400' : 'text-emerald-400',
+            accent: last.profit < 0 ? 'bg-gradient-to-r from-red-600 to-rose-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+          },
         ].map(c => (
           <div key={c.label} className="card p-5 relative overflow-hidden">
             <div className={`absolute inset-x-0 top-0 h-[2px] ${c.accent}`} />
@@ -78,7 +83,9 @@ export default function PnLPage() {
             <p className="section-title">P&L Trend</p>
             <p className="text-xs text-zinc-500 mt-0.5">Revenue, cost and profit over 6 months</p>
           </div>
-          <span className="badge badge-green">Margin {marginPct}%</span>
+          <span className={`badge ${Number(marginPct) < 0 ? 'badge-red' : 'badge-green'}`}>
+            Margin {marginPct}%
+          </span>
         </div>
         <div className="p-5">
           <ResponsiveContainer width="100%" height={260}>
@@ -104,20 +111,30 @@ export default function PnLPage() {
       <div className="table-wrap">
         <div className="table-head"><p className="section-title">Monthly Breakdown</p></div>
         <table className="table-base">
-          <thead><tr><th>Month</th><th>Revenue</th><th>Material Cost</th><th>Labor Cost</th><th>Overhead</th><th>Total Cost</th><th>Net Profit</th><th>Margin</th></tr></thead>
+          <thead><tr><th>Month</th><th>Revenue</th><th>Material Cost</th><th>Labor Cost</th><th>Overhead</th><th>Total Cost</th><th>Net Profit / Loss</th><th>Margin</th></tr></thead>
           <tbody>
-            {data.map(d => (
-              <tr key={d.month}>
-                <td className="font-semibold text-zinc-200">{d.month} 2026</td>
-                <td className="text-blue-400 font-mono">{formatCurrencyFull(d.revenue)}</td>
-                <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.materialCost)}</td>
-                <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.laborCost)}</td>
-                <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.overheadCost)}</td>
-                <td className="text-red-400 font-mono">{formatCurrencyFull(d.cost)}</td>
-                <td className="text-emerald-400 font-bold font-mono">{formatCurrencyFull(d.profit)}</td>
-                <td><span className="badge badge-green">{d.revenue > 0 ? ((d.profit/d.revenue)*100).toFixed(1) : 0}%</span></td>
-              </tr>
-            ))}
+            {data.map(d => {
+              const isLoss = d.profit < 0
+              const margin = d.revenue > 0 ? ((d.profit / d.revenue) * 100).toFixed(1) : 0
+              return (
+                <tr key={d.month}>
+                  <td className="font-semibold text-zinc-200">{d.month} 2026</td>
+                  <td className="text-blue-400 font-mono">{formatCurrencyFull(d.revenue)}</td>
+                  <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.materialCost)}</td>
+                  <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.laborCost)}</td>
+                  <td className="text-red-400/80 font-mono text-xs">{formatCurrencyFull(d.overheadCost)}</td>
+                  <td className="text-red-400 font-mono">{formatCurrencyFull(d.cost)}</td>
+                  <td className={`font-bold font-mono ${isLoss ? 'text-red-400' : 'text-emerald-400'}`}>
+                    {isLoss ? `-${formatCurrencyFull(Math.abs(d.profit))}` : formatCurrencyFull(d.profit)}
+                  </td>
+                  <td>
+                    <span className={`badge ${isLoss ? 'badge-red' : 'badge-green'}`}>
+                      {margin}%
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

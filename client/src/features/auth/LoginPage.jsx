@@ -33,10 +33,8 @@ export default function LoginPage() {
 
   // Derive the email to authenticate with
   const loginEmail = selectedRole.role === 'worker'
-    ? selectedWorker.email
-    : ROLE_OPTIONS.find(r => r.role === selectedRole.role)
-        ? `${selectedRole.role}@everest.com`
-        : `${selectedRole.role}@everest.com`
+    ? (selectedWorker?.email || 'worker@textile.com')
+    : `${selectedRole.role}@textile.com`
 
   // Close dropdowns on outside click
   useEffect(() => {

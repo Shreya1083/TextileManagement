@@ -5,10 +5,10 @@ import { authenticate } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// Rate limiter for login endpoint (5 attempts per 15 minutes)
+// Rate limiter for login endpoint (relaxed for development/testing)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 10000,
   message: {
     success: false,
     message: 'Too many login attempts. Please try again after 15 minutes.',

@@ -52,8 +52,14 @@ export default function CostingPage() {
                 <td className="font-mono text-xs">{formatCurrencyFull(c.overhead)}</td>
                 <td className="font-semibold font-mono text-xs">{formatCurrencyFull(c.total)}</td>
                 <td className="text-emerald-400 font-mono text-xs">{formatCurrencyFull(c.invoice)}</td>
-                <td className="text-emerald-400 font-bold font-mono text-xs">{formatCurrencyFull(c.profit)}</td>
-                <td><span className="badge badge-green">{c.profitPct}%</span></td>
+                <td className={`font-bold font-mono text-xs ${c.profit < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {c.profit < 0 ? `-${formatCurrencyFull(Math.abs(c.profit))}` : formatCurrencyFull(c.profit)}
+                </td>
+                <td>
+                  <span className={`badge ${c.profit < 0 || Number(c.profitPct) < 0 ? 'badge-red' : 'badge-green'}`}>
+                    {c.profitPct}%
+                  </span>
+                </td>
                 <td><Badge status={c.status} /></td>
               </tr>
             ))}

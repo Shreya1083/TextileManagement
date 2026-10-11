@@ -24,6 +24,7 @@ export default function SignInPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm({ defaultValues: { email: '', password: '', role: '' } })
 
@@ -37,8 +38,7 @@ export default function SignInPage() {
     
     if (res.ok) {
       // Cross-check: the submitted role must match the role assigned to this account.
-      // This prevents a user from entering owner credentials while selecting a different role.
-      if (res.role !== role) {
+      if (role && res.role?.toLowerCase() !== role?.toLowerCase()) {
         setAuthError('The selected role does not match this account. Please choose the correct role.')
         return
       }
@@ -230,31 +230,6 @@ export default function SignInPage() {
               )}
             </button>
           </form>
-
-          {/* Demo credentials - removed in production */}
-          {import.meta.env.DEV && (
-          <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/80 rounded-2xl">
-            <p className="text-2xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Demo Access</p>
-            <p className="text-xs text-zinc-500 mb-2">
-              Password: <code className="text-primary-400 font-mono">Admin@123</code>
-            </p>
-            <div className="space-y-1">
-              {[
-                { role: 'Owner / Admin' },
-                { role: 'Store Keeper' },
-                { role: 'Production Supervisor' },
-                { role: 'Quality Inspector' },
-                { role: 'Office / Accounts' },
-                { role: 'Buyer' },
-                { role: 'Floor Worker' },
-              ].map(({ role }) => (
-                <div key={role} className="flex items-center gap-2">
-                  <span className="text-2xs text-zinc-600">{role}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          )}
         </div>
       </div>
     </div>

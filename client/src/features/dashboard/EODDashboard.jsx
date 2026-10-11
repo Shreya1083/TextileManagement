@@ -259,7 +259,9 @@ export default function EODDashboard() {
                 <span className="text-xl font-bold text-emerald-400">{formatCurrency(s.estimatedRevenue)}</span>
               </div>
               <p className="text-2xs text-zinc-600">Cost: {formatCurrency(s.estimatedCost)}</p>
-              <p className="text-xs text-emerald-400 font-semibold">+{formatCurrency(s.estimatedProfit)} profit</p>
+              <p className={`text-xs font-semibold ${s.estimatedProfit < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                {s.estimatedProfit < 0 ? `-${formatCurrency(Math.abs(s.estimatedProfit))} loss` : `+${formatCurrency(s.estimatedProfit)} profit`}
+              </p>
             </div>
 
             {/* Dispatch */}
@@ -564,7 +566,9 @@ export default function EODDashboard() {
               Total production: <span className="text-zinc-300 font-semibold">{s.totalOutput.toLocaleString()} m</span> ·
               Pass rate: <span className="text-emerald-400 font-semibold">{passRate}%</span> ·
               Attendance: <span className="text-cyan-400 font-semibold">{attendPct}%</span> ·
-              Est. profit: <span className="text-emerald-400 font-semibold">{formatCurrencyFull(s.estimatedProfit)}</span> ·
+              Est. {s.estimatedProfit < 0 ? 'loss' : 'profit'}: <span className={`font-semibold ${s.estimatedProfit < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                {s.estimatedProfit < 0 ? `-${formatCurrencyFull(Math.abs(s.estimatedProfit))}` : formatCurrencyFull(s.estimatedProfit)}
+              </span> ·
               Top defect: <span className="text-amber-400 font-semibold">{s.topDefect}</span>
             </p>
           </div>

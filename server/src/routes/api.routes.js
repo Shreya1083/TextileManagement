@@ -180,8 +180,8 @@ const crudRoutes = (modelName, include = null) => {
         bodyData = {
           date: date ? new Date(date) : new Date(),
           shift: shift || 'Morning',
-          machine: targetMachineId || 'M-01',
-          order: orderId || req.body.order || null,
+          machineId: targetMachineId || 'M-01',
+          orderId: orderId || req.body.order || null,
           output: Number(output) || 0,
           waste: Number(waste) || 0,
           rolls: Number(rolls) || 0,
@@ -191,8 +191,8 @@ const crudRoutes = (modelName, include = null) => {
         const createdEntry = await prisma.productionEntry.create({ data: bodyData });
         const responseData = {
           ...createdEntry,
-          machineId: createdEntry.machine,
-          orderId: createdEntry.order
+          machineId: createdEntry.machineId || createdEntry.machine,
+          orderId: createdEntry.orderId || createdEntry.order
         };
 
         // Update machine stats and assignment
@@ -304,18 +304,52 @@ const crudRoutes = (modelName, include = null) => {
         const { yarn, colour, qty } = bodyData;
         if (yarn && qty) {
           try {
-            const existing = await prisma.inventoryItem.findFirst({
+            // First attempt: match both type and color (case-insensitive)
+            let existing = await prisma.inventoryItem.findFirst({
               where: {
-                type: { equals: yarn, mode: 'insensitive' },
-                ...(colour ? { color: { equals: colour, mode: 'insensitive' } } : {})
+                type: { equals: yarn.trim(), mode: 'insensitive' },
+                ...(colour ? { color: { equals: colour.trim(), mode: 'insensitive' } } : {})
               }
             });
+
+            // Second attempt: match type only if specific color wasn't found
+            if (!existing) {
+              existing = await prisma.inventoryItem.findFirst({
+                where: {
+                  type: { equals: yarn.trim(), mode: 'insensitive' }
+                }
+              });
+            }
+
             if (existing) {
-              const newCurrent = existing.current + Number(qty);
-              const newStatus = (newCurrent - existing.reserved) <= 0 ? 'OUT' : (newCurrent - existing.reserved) < existing.reorder ? 'LOW' : 'OK';
+              const newCurrent = Math.max(0, Number(existing.current || 0) + Number(qty));
+              const reserved = Number(existing.reserved || 0);
+              const reorder = Number(existing.reorder || 100);
+              const available = newCurrent - reserved;
+              const newStatus = available <= 0 ? 'OUT' : available < reorder ? 'LOW' : 'OK';
+
               await prisma.inventoryItem.update({
                 where: { id: existing.id },
-                data: { current: newCurrent, status: newStatus }
+                data: {
+                  current: newCurrent,
+                  status: newStatus,
+                  ...(colour && (!existing.color || existing.color === 'Raw') ? { color: colour.trim() } : {})
+                }
+              });
+            } else {
+              // Create brand new inventory item so it appears in the list
+              const qtyNum = Number(qty);
+              const reorderLvl = Math.round(qtyNum * 0.3) || 100;
+              await prisma.inventoryItem.create({
+                data: {
+                  type: yarn.trim(),
+                  color: colour ? colour.trim() : 'White',
+                  current: qtyNum,
+                  reserved: 0,
+                  reorder: reorderLvl,
+                  unit: 'kg',
+                  status: qtyNum > reorderLvl ? 'OK' : 'LOW'
+                }
               });
             }
           } catch (e) {
@@ -359,6 +393,31 @@ const crudRoutes = (modelName, include = null) => {
         bodyData.balance = bodyData.balance !== undefined ? Number(bodyData.balance) : (bodyData.amount - bodyData.paid);
         bodyData.date = bodyData.date ? new Date(bodyData.date) : new Date();
         bodyData.status = bodyData.status || (bodyData.balance <= 0 ? 'PAID' : (bodyData.paid > 0 ? 'PARTIAL' : 'UNPAID'));
+      }
+
+      // Special handling for customer / buyer creation
+      if (modelName === 'customer') {
+        if (!bodyData.buyerId) {
+          bodyData.buyerId = `BUYER-${Date.now().toString().slice(-6)}`;
+        }
+        if (bodyData.creditLimit !== undefined) {
+          bodyData.creditLimit = Number(bodyData.creditLimit) || 0;
+        }
+        bodyData.type = bodyData.type || 'BUYER';
+      }
+
+      // Special handling for productionEntry creation
+      if (modelName === 'productionEntry') {
+        bodyData.date = bodyData.date ? new Date(bodyData.date) : new Date();
+        bodyData.output = Number(bodyData.output) || 0;
+        bodyData.waste = Number(bodyData.waste) || 0;
+        bodyData.rolls = Math.round(Number(bodyData.rolls)) || 1;
+        if (bodyData.machine && !bodyData.machineId) bodyData.machineId = bodyData.machine;
+        if (bodyData.order && !bodyData.orderId) bodyData.orderId = bodyData.order;
+        delete bodyData.machine;
+        delete bodyData.order;
+        bodyData.operator = bodyData.operator || 'Operator';
+        bodyData.shift = bodyData.shift || 'Morning';
       }
 
       const data = await prisma[modelName].create({ data: bodyData, include });

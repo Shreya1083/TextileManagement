@@ -101,23 +101,18 @@ function BuyerRegisterModal({ open, onClose, onSave, existingCount }) {
     }
   }
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => {
-      setSaved(false)
-      onSave?.({
-        id:          form.buyerId,
-        name:        form.companyName,
-        city:        form.city,
-        contact:     form.phone,
-        gstin:       form.gstin,
-        email:       form.loginEmail,
-        orders:      0,
-        outstanding: 0,
-        type:        form.type,
-      })
+  const handleSave = async () => {
+    try {
+      setSaved(true)
+      if (onSave) {
+        await onSave(form)
+      }
       onClose()
-    }, 1800)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSaved(false)
+    }
   }
 
   const reset = () => { setStep(1); setSaved(false) }
@@ -421,29 +416,32 @@ export default function BuyersPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [search,  setSearch]  = useState('')
   
-  const { data: buyersData, isLoading, error } = useBuyers()
+  const { data: buyersData, isLoading, error, refetch: refetchBuyers } = useBuyers()
   const buyers = buyersData?.data || []
   const createBuyerMutation = useCreateBuyer()
 
   const handleSave = async (buyer) => {
     try {
       await createBuyerMutation.mutateAsync({
-        buyerId: buyer.buyerId,
-        name: buyer.companyName,
-        email: buyer.loginEmail,
-        phone: buyer.phone,
-        address: buyer.address,
-        city: buyer.city,
-        state: buyer.state,
-        pincode: buyer.pincode,
-        type: buyer.type,
-        gstin: buyer.gstin,
-        pan: buyer.pan,
-        creditLimit: Number(buyer.creditLimit),
-        paymentTerms: buyer.paymentTerms,
+        buyerId: buyer.buyerId || buyer.id,
+        name: buyer.companyName || buyer.name,
+        email: buyer.loginEmail || buyer.email,
+        phone: buyer.phone || buyer.contact,
+        address: buyer.address || '',
+        city: buyer.city || '',
+        state: buyer.state || '',
+        pincode: buyer.pincode || '',
+        type: buyer.type || 'BUYER',
+        gstin: buyer.gstin || '',
+        pan: buyer.pan || '',
+        creditLimit: Number(buyer.creditLimit) || 0,
+        paymentTerms: buyer.paymentTerms || 'Net 30',
       })
+      await refetchBuyers()
     } catch (err) {
       console.error('Failed to register buyer', err)
+      alert('Failed to register buyer: ' + (err?.response?.data?.message || err?.message || err))
+      throw err
     }
   }
 
@@ -491,14 +489,14 @@ export default function BuyersPage() {
               </div>
               <div className="flex flex-col items-end gap-1">
                 {b.outstanding > 0 && <span className="badge badge-red">Overdue</span>}
-                <span className="font-mono text-2xs text-zinc-700 group-hover:text-zinc-500">{b.id}</span>
+                <span className="font-mono text-2xs text-zinc-700 group-hover:text-zinc-500">{b.buyerId || b.id}</span>
               </div>
             </div>
 
             <div className="space-y-2 text-xs pt-3 border-t border-zinc-800/60">
               <div className="flex justify-between">
                 <span className="flex items-center gap-1.5 text-zinc-600"><Phone size={10} />Contact</span>
-                <span className="font-mono text-zinc-300">{b.contact}</span>
+                <span className="font-mono text-zinc-300">{b.phone || b.contact || '—'}</span>
               </div>
               {b.email && (
                 <div className="flex justify-between">

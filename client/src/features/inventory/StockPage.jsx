@@ -39,8 +39,10 @@ export default function StockPage() {
   const [search, setSearch] = useState('')
   const [showAddGRN, setShowAddGRN] = useState(false)
   const [editItem, setEditItem] = useState(null)
+  const [isCustomYarn, setIsCustomYarn] = useState(false)
+  const [toast, setToast] = useState(null)
   
-  const { data: stockData, isLoading, error } = useStock()
+  const { data: stockData, isLoading, error, refetch: refetchStock } = useStock()
   const allStock = stockData?.data || []
 
   const { data: suppliersData } = useSuppliers()
@@ -48,6 +50,11 @@ export default function StockPage() {
 
   const createGateEntryMutation = useCreateGateEntry()
   const updateStockMutation = useUpdateStockItem()
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }
   
   const filtered = allStock.filter(y =>
     y.type?.toLowerCase().includes(search.toLowerCase()) ||
@@ -68,6 +75,20 @@ export default function StockPage() {
 
   return (
     <div className="page-root">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-xl shadow-2xl border text-sm font-semibold flex items-center gap-2.5 animate-slide-in ${
+            toast.type === 'error'
+              ? 'bg-red-950/95 border-red-700 text-red-200'
+              : 'bg-emerald-950/95 border-emerald-600 text-emerald-200'
+          }`}
+        >
+          {toast.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       <PageHeader
         title="Stock Levels"
         subtitle={`Managed by ${user?.name} · Current, reserved and available yarn inventory`}
@@ -77,7 +98,13 @@ export default function StockPage() {
             <Link to="/inventory/gate-entries" className="btn-secondary btn-sm gap-1">
               View GRNs <ArrowRight size={13} />
             </Link>
-            <button className="btn-primary btn-sm gap-1.5" onClick={() => setShowAddGRN(true)}>
+            <button
+              className="btn-primary btn-sm gap-1.5"
+              onClick={() => {
+                setIsCustomYarn(false)
+                setShowAddGRN(true)
+              }}
+            >
               <Plus size={14} />Add GRN
             </button>
           </div>
@@ -147,22 +174,26 @@ export default function StockPage() {
           const fd = new FormData(e.target)
           const data = Object.fromEntries(fd.entries())
           try {
+            const grnId = `GRN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
+            const qtyNum = Number(data.qty) || 0
             await createGateEntryMutation.mutateAsync({
-              grnId: `GRN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+              grnId,
               supplier: data.supplier,
               yarn: data.yarn,
-              colour: data.colour,
+              colour: data.colour || 'White',
               lotBatch: data.lotBatch || `LOT-${Date.now().toString().slice(-4)}`,
-              qty: Number(data.qty),
+              qty: qtyNum,
               bags: Number(data.bags) || 1,
               challan: data.challan || `CH-${Math.floor(1000 + Math.random() * 9000)}`,
               vehicle: data.vehicle || 'GJ-05-AB-1234',
               notes: data.notes || '',
             })
+            await refetchStock()
+            showToast(`GRN ${grnId} created! +${qtyNum} kg added to ${data.yarn} stock.`)
             setShowAddGRN(false)
           } catch (err) {
             console.error('Failed to create GRN:', err)
-            alert('Failed to add GRN: ' + (err?.message || err))
+            showToast('Failed to add GRN: ' + (err?.message || err), 'error')
           }
         }}>
           <div className="grid grid-cols-2 gap-4">
@@ -174,55 +205,74 @@ export default function StockPage() {
               </select>
             </div>
             <div>
-              <label className="label">Yarn Stock Item</label>
-              <select
-                name="yarn"
-                className="input"
-                required
-                onChange={e => {
-                  const sel = allStock.find(s => s.type === e.target.value)
-                  const colInput = document.getElementById('grn_color_input')
-                  if (sel && colInput) colInput.value = sel.color
-                }}
-              >
-                <option value="" disabled>Select or Match Yarn...</option>
-                {allStock.map(s => <option key={s.id} value={s.type}>{s.type} ({s.color})</option>)}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="label !mb-0">Yarn Item</label>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomYarn(!isCustomYarn)}
+                  className="text-2xs text-primary-400 hover:text-primary-300 font-semibold"
+                >
+                  {isCustomYarn ? '← Select Existing' : '+ New / Custom Yarn'}
+                </button>
+              </div>
+              {isCustomYarn ? (
+                <input
+                  name="yarn"
+                  className="input"
+                  required
+                  placeholder="e.g. Poly Spun 30s / Cotton 60s"
+                />
+              ) : (
+                <select
+                  name="yarn"
+                  className="input"
+                  required
+                  defaultValue=""
+                  onChange={e => {
+                    const sel = allStock.find(s => s.type === e.target.value)
+                    const colInput = document.getElementById('grn_color_input')
+                    if (sel && colInput) colInput.value = sel.color
+                  }}
+                >
+                  <option value="" disabled>Select Yarn to Inward...</option>
+                  {allStock.map(s => <option key={s.id} value={s.type}>{s.type} ({s.color})</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label className="label">Colour</label>
-              <input id="grn_color_input" name="colour" className="input" required placeholder="White / Raw / Dyed" />
+              <input id="grn_color_input" name="colour" className="input" required placeholder="White / Raw / Dyed" defaultValue="White" />
             </div>
             <div>
               <label className="label">Quantity Received (kg)</label>
-              <input name="qty" className="input" type="number" step="any" required placeholder="e.g. 500" />
+              <input name="qty" className="input font-mono font-bold" type="number" step="any" min="1" required placeholder="e.g. 500" />
             </div>
             <div>
               <label className="label">Bags / Cartons</label>
-              <input name="bags" className="input" type="number" defaultValue="10" required />
+              <input name="bags" className="input font-mono" type="number" defaultValue="10" required />
             </div>
             <div>
               <label className="label">Challan / Invoice No.</label>
-              <input name="challan" className="input" required placeholder="e.g. CH-2026-99" />
+              <input name="challan" className="input font-mono" required placeholder="e.g. CH-2026-99" />
             </div>
             <div>
               <label className="label">Vehicle No.</label>
-              <input name="vehicle" className="input" required placeholder="e.g. GJ-05-XY-8822" />
+              <input name="vehicle" className="input font-mono" required placeholder="e.g. GJ-05-XY-8822" />
             </div>
             <div>
               <label className="label">Lot / Batch No.</label>
-              <input name="lotBatch" className="input" placeholder="e.g. LOT-40S-09" />
+              <input name="lotBatch" className="input font-mono" placeholder="e.g. LOT-40S-09" />
             </div>
             <div className="col-span-2">
               <label className="label">Notes / Storage Rack</label>
               <textarea name="notes" className="input" rows={2} placeholder="Stored in Bay-3, Rack A2..." />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800">
             <button type="button" className="btn-secondary" onClick={() => setShowAddGRN(false)}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={createGateEntryMutation.isPending}>
+            <button type="submit" className="btn-primary flex items-center gap-1.5" disabled={createGateEntryMutation.isPending}>
               <Package size={14} />
-              {createGateEntryMutation.isPending ? 'Adding GRN...' : 'Save GRN & Update Stock'}
+              {createGateEntryMutation.isPending ? 'Saving & Updating Stock...' : 'Save GRN & Update Stock'}
             </button>
           </div>
         </form>
@@ -246,9 +296,11 @@ export default function StockPage() {
                 reorder,
                 status
               })
+              await refetchStock()
+              showToast(`Updated stock status for ${editItem.type}!`)
               setEditItem(null)
             } catch (err) {
-              alert('Failed to update stock: ' + (err?.message || err))
+              showToast('Failed to update stock: ' + (err?.message || err), 'error')
             }
           }}>
             <div className="space-y-4">

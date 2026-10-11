@@ -169,26 +169,6 @@ export default function OwnerDashboard() {
         }
       />
 
-      {/* Latest announcement broadcast banner */}
-      {alerts.filter(a => a.type === 'announcement').slice(0, 1).map(ann => (
-        <div key={ann.id} className="p-4 rounded-2xl bg-gradient-to-r from-primary-950/60 to-zinc-900 border border-primary-500/30 flex items-center gap-3.5 shadow-sm">
-          <div className="w-9 h-9 rounded-xl bg-primary-500/20 text-primary-400 flex items-center justify-center shrink-0 text-base">
-            📢
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-2xs font-bold uppercase tracking-wider text-primary-400">Notice Board</span>
-              <span className="text-zinc-600 text-xs">·</span>
-              <span className="text-2xs text-zinc-500">By {ann.author || 'Management'}</span>
-            </div>
-            <p className="text-xs text-zinc-200 font-medium mt-0.5 leading-snug">{ann.message}</p>
-          </div>
-          <span className="text-2xs text-zinc-600 shrink-0">
-            {ann.createdAt ? new Date(ann.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
-          </span>
-        </div>
-      ))}
-
       {/* ── Primary KPIs ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {canViewFinance && (

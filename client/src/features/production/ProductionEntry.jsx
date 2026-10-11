@@ -98,8 +98,8 @@ export default function ProductionEntry() {
                 <tr key={e.id}>
                   <td className="text-xs text-zinc-400">{formatDate(e.date)}</td>
                   <td><span className="badge badge-purple">{e.shift}</span></td>
-                  <td className="font-mono text-xs text-zinc-300 font-semibold">{e.machineId}</td>
-                  <td className="font-mono text-xs text-primary-400 font-semibold">{e.orderId || '-'}</td>
+                  <td className="font-mono text-xs text-zinc-300 font-semibold">{e.machineId || e.machine}</td>
+                  <td className="font-mono text-xs text-primary-400 font-semibold">{e.orderId || e.order || '-'}</td>
                   <td className="font-bold text-emerald-400">{e.output?.toLocaleString()} m</td>
                   <td className="text-amber-400">{e.waste} m</td>
                   <td><span className="badge badge-blue">{e.rolls}</span></td>
@@ -126,10 +126,11 @@ export default function ProductionEntry() {
               rolls: Number(fd.get('rolls')),
               operator: fd.get('operator')
             })
+            await refetch()
             setShowAdd(false)
           } catch (err) {
             console.error('Failed to create production entry:', err)
-            alert('Failed to save entry: ' + (err?.message || err))
+            alert('Failed to save entry: ' + (err?.response?.data?.message || err?.message || err))
           }
         }}>
           <div className="grid grid-cols-2 gap-4">

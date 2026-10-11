@@ -229,6 +229,39 @@ export const useStopMachine = () => {
     mutationFn: ({ id, reason }) => API.production.stopMachine(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['production', 'machines'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.machines })
+      queryClient.invalidateQueries({ queryKey: queryKeys.floorStats })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+export const useUpdateMachine = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => API.production.updateMachine(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.machines })
+      const previousMachines = queryClient.getQueryData(queryKeys.machines)
+      if (previousMachines?.data) {
+        queryClient.setQueryData(queryKeys.machines, {
+          ...previousMachines,
+          data: previousMachines.data.map(m =>
+            (m.id === id || m.machineId === id) ? { ...m, ...data } : m
+          ),
+        })
+      }
+      return { previousMachines }
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousMachines) {
+        queryClient.setQueryData(queryKeys.machines, context.previousMachines)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.machines })
+      queryClient.invalidateQueries({ queryKey: queryKeys.floorStats })
+      queryClient.invalidateQueries({ queryKey: ['production', 'machines'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
@@ -410,11 +443,16 @@ export const useCreateGateEntry = () => {
   return useMutation({
     mutationFn: (data) => API.inventory.createGateEntry(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'stock'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stock({}) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stock() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.lowStock })
       queryClient.invalidateQueries({ queryKey: queryKeys.gateEntries() })
       queryClient.invalidateQueries({ queryKey: ['inventory', 'gate-entries'] })
-      queryClient.invalidateQueries({ queryKey: ['inventory', 'gateEntries'] })
-      queryClient.invalidateQueries({ queryKey: ['inventory', 'stock'] })
-      queryClient.invalidateQueries({ queryKey: queryKeys.stock() })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.refetchQueries({ queryKey: ['inventory', 'stock'] })
+      queryClient.refetchQueries({ queryKey: queryKeys.stock({}) })
     },
   })
 }
@@ -717,6 +755,16 @@ export const useUpdateUser = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }) => API.settings.updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users })
+    },
+  })
+}
+
+export const useDeleteUser = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => API.settings.deleteUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users })
     },

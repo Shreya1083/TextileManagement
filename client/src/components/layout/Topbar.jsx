@@ -16,6 +16,7 @@ const ROLE_COLORS = {
 
 /* ── Alerts dropdown ── */
 function AlertPanel({ onClose }) {
+  const navigate = useNavigate()
   const { data: alertsData, isLoading } = useAlerts()
   const alerts = (alertsData?.data || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   
@@ -26,6 +27,11 @@ function AlertPanel({ onClose }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [onClose])
 
+  const handleGoToNotifications = () => {
+    onClose()
+    navigate('/settings/notifications')
+  }
+
   return (
     <div
       ref={ref}
@@ -34,7 +40,7 @@ function AlertPanel({ onClose }) {
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-800/80">
         <div className="flex items-center gap-2">
           <Bell size={14} className="text-zinc-400" />
-          <span className="text-sm font-semibold text-zinc-200">Alerts</span>
+          <span className="text-sm font-semibold text-zinc-200">Alerts & Announcements</span>
         </div>
         <div className="flex items-center gap-2">
           {alerts.length > 0 && <span className="badge badge-red">{alerts.length} new</span>}
@@ -50,7 +56,11 @@ function AlertPanel({ onClose }) {
           <li className="px-4 py-8 text-center text-xs text-zinc-500">No new alerts</li>
         ) : (
           alerts.map(a => (
-            <li key={a.id} className="flex gap-3 px-4 py-3.5 hover:bg-zinc-800/40 transition-colors cursor-pointer">
+            <li
+              key={a.id}
+              onClick={handleGoToNotifications}
+              className="flex gap-3 px-4 py-3.5 hover:bg-zinc-800/40 transition-colors cursor-pointer"
+            >
               <div className={cn(
                 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
                 a.severity === 'danger' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400',
@@ -72,8 +82,11 @@ function AlertPanel({ onClose }) {
         )}
       </ul>
       <div className="px-4 py-3 border-t border-zinc-800/80">
-        <button className="text-xs text-primary-400 hover:text-primary-300 font-medium transition-colors">
-          View all alerts →
+        <button
+          onClick={handleGoToNotifications}
+          className="text-xs text-primary-400 hover:text-primary-300 font-medium transition-colors w-full text-left"
+        >
+          View all notifications & announcements →
         </button>
       </div>
     </div>

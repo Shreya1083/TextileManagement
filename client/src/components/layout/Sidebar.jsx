@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Factory, Package, ShoppingCart, Cog, Eye,
   Truck, FileText, Users, DollarSign, Settings, LogOut,
   Sparkles, BarChart3, ClipboardCheck, Boxes, UserCheck,
-  AlertTriangle, X, Layers, Wallet, CalendarCheck, Home,
+  AlertTriangle, X, Layers, Wallet, CalendarCheck, Home, Bell,
 } from 'lucide-react'
 
 const NAV = [
@@ -75,6 +75,7 @@ const NAV = [
     items: [
       { to: '/settings/mill',        label: 'Mill Settings', icon: Settings, roles: ['owner'] },
       { to: '/settings/master-data', label: 'Master Data',   icon: Sparkles, roles: ['owner'] },
+      { to: '/settings/notifications', label: 'Notifications', icon: Bell,     roles: ['owner','supervisor','store','accounts','inspector'] },
       { to: '/users',                label: 'Users',          icon: Users,    roles: ['owner'] },
     ],
   },
