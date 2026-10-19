@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth }  from '../../context/AuthContext'
-import { ROLE_OPTIONS, WORKER_LIST, ROLE_HOME } from '../../context/AuthContext'
+import { ROLE_OPTIONS, WORKER_LIST, ROLE_HOME, DEMO_USERS } from '../../context/AuthContext'
 import {
   Eye, EyeOff, Loader2, ArrowRight, Layers, ChevronDown,
   Boxes, Factory, Search, BarChart3, Shield, Package, Briefcase, User, ShoppingCart,
+  KeyRound, ChevronDown as ChevronDownIcon, Info,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -44,15 +45,16 @@ export default function LoginPage() {
   const [selectedWorker, setSelectedWorker] = useState(WORKER_LIST[0])
   const [showWorkerMenu, setShowWorkerMenu] = useState(false)
 
-  const [password, setPassword] = useState('Admin@123')
+  const [password, setPassword] = useState('demo123')
   const [showPw, setShowPw]     = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+  const [showCreds, setShowCreds] = useState(false)
 
-  // Derive the email to authenticate with
+  // Derive the email to authenticate with — look up actual user from DEMO_USERS
   const loginEmail = selectedRole.role === 'worker'
-    ? (selectedWorker?.email || 'worker@textile.com')
-    : `${selectedRole.role}@textile.com`
+    ? (selectedWorker?.email || 'mohan@everest.com')
+    : (DEMO_USERS.find(u => u.role === selectedRole.role)?.email || `${selectedRole.role}@everest.com`)
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -315,7 +317,8 @@ export default function LoginPage() {
                 </button>
               </div>
               <p className="text-2xs text-zinc-600 mt-1.5">
-                Password: <code className="text-primary-400 font-mono">Admin@123</code>
+                Password: <code className="text-primary-400 font-mono">demo123</code>
+                {' · '}Email: <code className="text-primary-400 font-mono">{loginEmail}</code>
               </p>
             </div>
 
@@ -337,26 +340,109 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Access summary */}
-          <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/80 rounded-2xl">
-            <p className="text-2xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Access levels</p>
-            <div className="space-y-1">
-              {ROLE_OPTIONS.map(r => (
-                <div key={r.role} className={cn(
-                  'flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-colors',
-                  selectedRole.role === r.role ? 'bg-primary-500/10' : '',
-                )}>
-                  <span className="text-base shrink-0">{r.icon}</span>
-                  <span className={cn(
-                    'text-xs font-semibold w-24 shrink-0',
-                    selectedRole.role === r.role ? 'text-primary-300' : 'text-zinc-500',
-                  )}>
-                    {r.label.split(' ')[0]}
-                  </span>
-                  <span className="text-2xs text-zinc-600 truncate">{r.desc}</span>
+          {/* ── Demo Credentials panel ── */}
+          <div className="mt-6 rounded-2xl border border-zinc-800/80 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowCreds(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800/60 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <KeyRound size={14} className="text-primary-400" />
+                <p className="text-xs font-bold text-zinc-300">Demo Login Credentials</p>
+                <span className="badge badge-primary !text-[10px] !py-0">click to reveal</span>
+              </div>
+              <ChevronDown size={14} className={cn('text-zinc-500 transition-transform duration-200', showCreds && 'rotate-180')} />
+            </button>
+
+            {showCreds && (
+              <div className="bg-zinc-900/60 border-t border-zinc-800/60 animate-fade-in">
+                {/* Staff accounts */}
+                <div className="px-4 pt-3 pb-1">
+                  <p className="text-2xs font-bold text-zinc-600 uppercase tracking-widest mb-2">Staff Accounts</p>
+                  <div className="space-y-1.5">
+                    {DEMO_USERS.filter(u => u.role !== 'worker').map(u => (
+                      <button
+                        key={u.email}
+                        type="button"
+                        onClick={() => {
+                          const roleOpt = ROLE_OPTIONS.find(r => r.role === u.role)
+                          if (roleOpt) { setSelectedRole(roleOpt); setError('') }
+                          setPassword(u.password)
+                        }}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-3 py-2 rounded-xl border text-left transition-all',
+                          'hover:border-primary-500/40 hover:bg-primary-500/5',
+                          selectedRole.role === u.role
+                            ? 'border-primary-500/40 bg-primary-500/10'
+                            : 'border-zinc-800/60 bg-zinc-800/20',
+                        )}
+                      >
+                        <div className={cn(
+                          'w-7 h-7 rounded-lg bg-gradient-to-br shrink-0 flex items-center justify-center text-white text-xs font-bold',
+                          ROLE_OPTIONS.find(r => r.role === u.role)?.color || 'from-zinc-500 to-zinc-700',
+                        )}>
+                          {u.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-zinc-200">{u.name}</span>
+                            <span className="text-2xs text-zinc-600 capitalize">({u.role})</span>
+                          </div>
+                          <p className="font-mono text-2xs text-zinc-500 truncate">{u.email}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <code className="text-2xs text-primary-400 font-mono bg-primary-500/10 px-1.5 py-0.5 rounded">{u.password}</code>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                {/* Worker accounts */}
+                <div className="px-4 pt-2 pb-3">
+                  <p className="text-2xs font-bold text-zinc-600 uppercase tracking-widest mb-2">Worker Accounts</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {DEMO_USERS.filter(u => u.role === 'worker').map(u => (
+                      <button
+                        key={u.email}
+                        type="button"
+                        onClick={() => {
+                          const workerOpt = ROLE_OPTIONS.find(r => r.role === 'worker')
+                          if (workerOpt) setSelectedRole(workerOpt)
+                          const wk = WORKER_LIST.find(w => w.email === u.email)
+                          if (wk) setSelectedWorker(wk)
+                          setPassword(u.password)
+                          setError('')
+                        }}
+                        className={cn(
+                          'flex items-center gap-2 px-2.5 py-2 rounded-xl border text-left transition-all',
+                          'hover:border-primary-500/40 hover:bg-primary-500/5',
+                          'border-zinc-800/60 bg-zinc-800/20',
+                        )}
+                      >
+                        <div className="w-6 h-6 rounded-lg bg-zinc-700 shrink-0 flex items-center justify-center text-[10px] font-black text-zinc-200 font-mono">
+                          {u.workerId?.replace('W-', '')}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-2xs font-semibold text-zinc-300 truncate">{u.name.split(' ')[0]}</p>
+                          <p className="font-mono text-[9px] text-zinc-600 truncate">{u.email}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-2xs text-zinc-600 mt-2 text-center">
+                    All worker passwords: <code className="text-primary-400 font-mono">demo123</code>
+                  </p>
+                </div>
+
+                <div className="px-4 py-2 bg-amber-500/5 border-t border-amber-500/15">
+                  <p className="text-2xs text-amber-500/70 text-center">
+                    ⚠️ Demo credentials only — remove in production
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
